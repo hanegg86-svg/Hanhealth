@@ -5,13 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Executive HQ & Wellness Tracker</title>
     
-    <!-- 📌 Favicon / ไอคอนบนแท็บเบราว์เซอร์ และ Shortcut Icon -->
-    <link rel="icon" type="image/png" href="hanhealth.png">
-    <link rel="apple-touch-icon" href="hanhealth.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="hanhealth.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="hanhealth.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="hanhealth.png">
+    <link rel="shortcut icon" href="hanhealth.png" type="image/png">
+    <meta property="og:image" content="hanhealth.png">
 
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Dad HQ">
+    <meta name="apple-mobile-web-app-title" content="HanHealth HQ">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -24,10 +26,8 @@
 <body class="bg-slate-100 text-slate-800 pb-28 antialiased selection:bg-emerald-100">
 
     <div class="max-w-md mx-auto relative min-h-screen flex flex-col bg-slate-50 shadow-2xl border-x border-slate-200">
-        <!-- 🏢 HEADER BANNER -->
         <header class="bg-slate-900 text-white sticky top-0 z-50 px-3 py-3 flex justify-between items-center shadow-md border-b border-slate-800">
             <div class="flex items-center gap-2 shrink-0">
-                <!-- 📌 ไอคอนรูปแอป hanhealth.png ใน Header -->
                 <img src="hanhealth.png" alt="HanHealth Logo" class="w-7 h-7 object-contain rounded-lg border border-emerald-500/30 shadow-xs">
                 <h1 class="text-xs sm:text-sm font-bold tracking-wide text-slate-100">EXECUTIVE HQ</h1>
             </div>
@@ -43,7 +43,6 @@
 
         <main class="p-4 space-y-5 flex-1">
             
-            <!-- 🏠 TAB 1: MAIN HQ -->
             <div id="hq-section" class="space-y-4">
                 <div class="relative bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-950 text-white p-5 rounded-2xl shadow-md overflow-hidden border border-slate-800">
                     <div class="relative z-10">
@@ -62,7 +61,6 @@
                             <i class="fa-solid fa-square-plus text-emerald-600 text-base"></i> บันทึกแผนงาน & สุขภาพ:
                         </label>
                         <div class="flex gap-1.5 flex-wrap">
-                            <!-- 📸 ปุ่มสแกนตารางงานจากรูปภาพด้วย Gemini AI -->
                             <button onclick="document.getElementById('schedule-camera-input').click()" title="ถ่ายรูปสแกนตารางงาน" class="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs px-2.5 py-1.5 rounded-xl font-semibold transition-all active:scale-95 flex items-center gap-1">
                                 <i class="fa-solid fa-camera text-amber-600"></i> สแกนรูป
                             </button>
@@ -78,7 +76,6 @@
                         </div>
                     </div>
 
-                    <!-- 🖼️ สแตนด์บายพรีวิวภาพตารางงานขณะสแกน -->
                     <div id="schedule-img-preview-box" class="hidden relative bg-slate-50 border border-slate-200 p-2.5 rounded-xl flex items-center gap-3">
                         <img id="schedule-img-preview" src="" class="w-12 h-12 object-cover rounded-lg border border-slate-200">
                         <div class="flex-1 overflow-hidden">
@@ -107,7 +104,6 @@
                 <div id="list-container" class="space-y-3"></div>
             </div>
 
-            <!-- 🗓️ TAB 2: CALENDAR WIDGET SECTION -->
             <div id="calendar-section" class="space-y-4 hidden">
                 <div id="calendar-widget-container"></div>
                 
@@ -123,7 +119,6 @@
                 </div>
             </div>
 
-            <!-- 🏃‍♂️ TAB 3: HEALTH & BMI -->
             <div id="health-section" class="space-y-4 hidden">
                 <div class="bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-950 rounded-2xl p-5 text-white shadow-md border border-slate-800 space-y-4">
                     <h2 class="text-base font-bold mb-1 flex items-center gap-2"><i class="fa-solid fa-heart-pulse text-emerald-400"></i>ข้อมูลดัชนีร่างกาย & เป้าหมายสุขภาพ</h2>
@@ -182,7 +177,6 @@
                 </div>
             </div>
 
-            <!-- ✏️ WEIGHT EDIT SUB-MODAL -->
             <div id="weight-edit-modal" class="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 hidden backdrop-blur-xs">
                 <div class="bg-white rounded-2xl w-full max-w-xs p-5 flex flex-col shadow-2xl border border-slate-100">
                     <h3 class="text-xs font-bold text-slate-800 mb-3.5 uppercase tracking-wider text-emerald-700 flex items-center gap-1.5"><i class="fa-solid fa-marker"></i>แก้ไขบันทึกน้ำหนัก</h3>
@@ -204,7 +198,6 @@
                 </div>
             </div>
 
-            <!-- 🍳 TAB 4: DIET TRACKER -->
             <div id="diet-section" class="space-y-4 hidden">
                 <div class="bg-white border border-slate-200/80 rounded-2xl p-4.5 shadow-sm">
                     <div class="flex justify-between items-center mb-2">
@@ -276,7 +269,6 @@
                 </div>
             </div>
 
-            <!-- 📊 TAB 5: GRAPH/DASHBOARD WIDGET -->
             <div id="graph-section" class="space-y-4 hidden">
                 <div class="bg-white border border-slate-200/80 rounded-2xl p-4.5 shadow-sm">
                     <h2 class="text-base font-bold text-slate-900 mb-3 flex items-center gap-2"><i class="fa-solid fa-chart-line text-emerald-600"></i>รายงานแนวโน้มสุขภาพระดับกลยุทธ์</h2>
@@ -305,7 +297,6 @@
 
         </main>
 
-        <!-- 🔑 GEMINI API KEY MODAL -->
         <div id="apikey-modal" class="fixed inset-0 bg-slate-900/60 z-[70] flex items-center justify-center p-4 hidden backdrop-blur-xs">
             <div class="bg-white rounded-2xl w-full max-w-xs p-5 flex flex-col shadow-2xl border border-slate-100 space-y-3.5">
                 <div class="flex justify-between items-center border-b border-slate-100 pb-2.5">
@@ -328,7 +319,6 @@
             </div>
         </div>
 
-        <!-- ✏️ EDIT APPOINTMENT MODAL -->
         <div id="edit-modal" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 hidden backdrop-blur-xs">
             <div class="bg-white rounded-2xl w-full max-w-sm p-5 flex flex-col shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto space-y-4">
                 <div class="flex justify-between items-center border-b border-slate-100 pb-2.5">
@@ -382,7 +372,6 @@
             </div>
         </div>
 
-        <!-- 📖 MENU OVERLAY MODAL -->
         <div id="menu-modal" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 hidden backdrop-blur-xs">
             <div class="bg-white rounded-2xl w-full max-w-sm p-5 flex flex-col max-h-[75vh] shadow-2xl border border-slate-100">
                 <div class="flex justify-between items-center border-b border-slate-100 pb-2.5 mb-3">
@@ -394,7 +383,6 @@
             </div>
         </div>
 
-        <!-- 🧭 EXECUTIVE NAVIGATION BAR -->
         <nav class="bg-white border-t border-slate-200 fixed bottom-0 left-0 right-0 z-50 px-3 py-2 flex justify-around items-center shadow-2xl max-w-md mx-auto">
             <button onclick="switchMainTab('hq')" id="nav-hq" class="flex flex-col items-center justify-center active-nav w-14 h-12 text-slate-400 transition-colors active:scale-95">
                 <i class="fa-solid fa-chart-line text-base"></i>
@@ -419,7 +407,6 @@
         </nav>
     </div>
 
-    <!-- Application Modules -->
     <script src="config.js"></script>
     <script src="db.js"></script>
     <script src="ai-service.js"></script>
