@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Executive HQ & Wellness Tracker</title>
     
+    <!-- 📌 Favicon / ไอคอนบนแท็บเบราว์เซอร์ และ Shortcut Icon -->
+    <link rel="icon" type="image/png" href="hanhealth.png">
+    <link rel="apple-touch-icon" href="hanhealth.png">
+
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Dad HQ">
@@ -23,9 +27,8 @@
         <!-- 🏢 HEADER BANNER -->
         <header class="bg-slate-900 text-white sticky top-0 z-50 px-3 py-3 flex justify-between items-center shadow-md border-b border-slate-800">
             <div class="flex items-center gap-2 shrink-0">
-                <div class="bg-emerald-600 p-1.5 rounded-xl text-white shadow-sm flex items-center justify-center">
-                    <i class="fa-solid fa-chart-pie text-sm"></i>
-                </div>
+                <!-- 📌 ไอคอนรูปแอป hanhealth.png ใน Header -->
+                <img src="hanhealth.png" alt="HanHealth Logo" class="w-7 h-7 object-contain rounded-lg border border-emerald-500/30 shadow-xs">
                 <h1 class="text-xs sm:text-sm font-bold tracking-wide text-slate-100">EXECUTIVE HQ</h1>
             </div>
             
@@ -59,7 +62,7 @@
                             <i class="fa-solid fa-square-plus text-emerald-600 text-base"></i> บันทึกแผนงาน & สุขภาพ:
                         </label>
                         <div class="flex gap-1.5 flex-wrap">
-                            <!-- 📸 เพิ่มปุ่มสแกนตารางงานจากรูปภาพด้วย Gemini AI -->
+                            <!-- 📸 ปุ่มสแกนตารางงานจากรูปภาพด้วย Gemini AI -->
                             <button onclick="document.getElementById('schedule-camera-input').click()" title="ถ่ายรูปสแกนตารางงาน" class="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs px-2.5 py-1.5 rounded-xl font-semibold transition-all active:scale-95 flex items-center gap-1">
                                 <i class="fa-solid fa-camera text-amber-600"></i> สแกนรูป
                             </button>
