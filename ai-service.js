@@ -21,7 +21,7 @@ async function handleImageScheduleEstimate(event) {
     reader.onload = async function(e) {
         imgPreview.src = e.target.result;
         previewBox.classList.remove('hidden');
-        statusText.innerText = "🤖 กำลังใช้ Gemini 3.1 Flash-Lite วิเคราะห์สกัดตารางประชุม...";
+        statusText.innerText = "🤖 กำลังใช้ Gemini 3.5 Flash-Lite วิเคราะห์สกัดตารางประชุม...";
 
         const base64Data = e.target.result.split(',')[1];
         const mimeType = file.type || "image/jpeg";
@@ -42,7 +42,7 @@ async function handleImageScheduleEstimate(event) {
 - ตอบกลับเฉพาะ JSON Array บริสุทธิ์ (ไม่ต้องใส่ markdown code block)`;
 
         try {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`;
             const response = await fetch(url, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -191,7 +191,7 @@ async function fetchCalorieFromGemini(foodName, base64Image = null, mimeType = n
         return null;
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`;
     let partsPayload = [];
     
     if (base64Image) {
