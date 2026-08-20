@@ -2,11 +2,7 @@ function escapeHtml(str) {
     if (typeof str !== 'string') return str;
     return str.replace(/[&<>"']/g, function(m) {
         return {
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
         }[m];
     });
 }
@@ -67,7 +63,13 @@ function setWeightDefaultValues() {
         let sortedLogs = [...localData.weightLog].sort((a,b) => b.timestamp - a.timestamp);
         document.getElementById('weight-input').value = sortedLogs[0].weight;
     } else {
-        document.getElementById('weight-input').value = 70;
+        document.getElementById('weight-input').value = 85;
+    }
+
+    if (localData.userProfile) {
+        if(document.getElementById('user-gender')) document.getElementById('user-gender').value = localData.userProfile.gender || 'male';
+        if(document.getElementById('user-age')) document.getElementById('user-age').value = localData.userProfile.age || 42;
+        if(document.getElementById('user-activity')) document.getElementById('user-activity').value = localData.userProfile.activity || 1.55;
     }
 }
 
@@ -182,28 +184,47 @@ function saveCustomCalorieTarget(val) {
 }
 
 function calculateHealth() {
-    let weight = parseFloat(document.getElementById('weight-input').value) || 70;
+    let weight = parseFloat(document.getElementById('weight-input').value) || 85;
     
     if(localData.weightLog && localData.weightLog.length > 0) {
         let sorted = [...localData.weightLog].sort((a,b) => b.timestamp - a.timestamp);
         weight = sorted[0].weight;
     }
 
-    const height = parseFloat(document.getElementById('height-input').value) || 175;
+    const height = parseFloat(document.getElementById('height-input').value) || 176;
+    const gender = document.getElementById('user-gender') ? document.getElementById('user-gender').value : 'male';
+    const age = parseInt(document.getElementById('user-age') ? document.getElementById('user-age').value : 42) || 42;
+    const activity = parseFloat(document.getElementById('user-activity') ? document.getElementById('user-activity').value : 1.55) || 1.55;
+
+    localData.userProfile = { gender, age, height, activity };
+    saveData();
+
     if (weight > 0 && height > 0) {
         const bmi = (weight / ((height / 100) ** 2)).toFixed(1);
         document.getElementById('bmi-value').innerText = bmi;
-        let status = 'สมส่วน'; let statusColor = 'bg-emerald-500'; let bmiTargetCal = 2000; let suggestion = '';
+        let status = 'สมส่วน'; let statusColor = 'bg-emerald-500'; let suggestion = '';
 
-        if (bmi < 18.5) { status = 'น้ำหนักน้อย'; statusColor = 'bg-amber-500'; bmiTargetCal = 2400; suggestion = `<p>• แนะนำโปรแกรมสร้างกล้ามเนื้อ เพิ่มสารอาหารกลุ่มคาร์โบไฮเดรตและโปรตีนคุณภาพสูง</p>`; } 
-        else if (bmi >= 23) { status = 'น้ำหนักเกิน'; statusColor = 'bg-rose-500'; bmiTargetCal = 1700; suggestion = `<p>• แนะนำโปรแกรมวิ่งโซน 2 เพื่อลีนไขมันส่วนเกินอย่างยั่งยืนและกระตุ้นการเผาผลาญ</p>`; } 
+        if (bmi < 18.5) { status = 'น้ำหนักน้อย'; statusColor = 'bg-amber-500'; suggestion = `<p>• แนะนำโปรแกรมสร้างกล้ามเนื้อ เพิ่มสารอาหารกลุ่มคาร์โบไฮเดรตและโปรตีนคุณภาพสูง</p>`; } 
+        else if (bmi >= 23) { status = 'น้ำหนักเกิน'; statusColor = 'bg-rose-500'; suggestion = `<p>• แนะนำโปรแกรมวิ่งโซน 2 เพื่อลีนไขมันส่วนเกินอย่างยั่งยืนและกระตุ้นการเผาผลาญ</p>`; } 
         else { suggestion = `<p>• ระดับร่างกายฟิตสมบูรณ์แบบ ลุยซ้อมออกกำลังกายและควบคุมวินัยต่อเนื่องได้เลยครับ</p>`; }
         
         document.getElementById('bmi-status').innerText = status;
         document.getElementById('bmi-status').className = `text-xs font-bold ${statusColor} text-white px-2.5 py-1 rounded-lg inline-block mt-1`;
         document.getElementById('workout-suggestion').innerHTML = suggestion;
         
-        let finalTarget = (localData.calorieTargetMode === 'bmi') ? bmiTargetCal : (localData.customCalorieTarget || 2000);
+        // คำนวณ BMR & TDEE คำแนะนำ
+        let bmr = 0;
+        if (gender === 'male') {
+            bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
+        } else {
+            bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161;
+        }
+        let tdee = Math.round(bmr * activity);
+
+        if(document.getElementById('bmr-display')) document.getElementById('bmr-display').innerText = Math.round(bmr).toLocaleString();
+        if(document.getElementById('tdee-display')) document.getElementById('tdee-display').innerText = tdee.toLocaleString();
+
+        let finalTarget = (localData.calorieTargetMode === 'bmi') ? tdee : (localData.customCalorieTarget || 2000);
         
         let targetEl = document.getElementById('target-cal');
         let limitEl = document.getElementById('limit-cal');
@@ -213,6 +234,15 @@ function calculateHealth() {
         let dateInput = document.getElementById('diet-log-date').value;
         if(dateInput) renderFoods();
     }
+}
+
+function applyTdeeAsTarget() {
+    let tdeeText = document.getElementById('tdee-display').innerText.replace(/,/g, '');
+    let tdeeVal = parseInt(tdeeText) || 2000;
+    localData.customCalorieTarget = tdeeVal;
+    document.getElementById('custom-cal-input').value = tdeeVal;
+    setCalorieMode('custom', true);
+    alert(`🎯 ตั้งเป้าหมายแคลอรีตาม TDEE แนะนำ (${tdeeVal.toLocaleString()} kcal) เรียบร้อยครับ!`);
 }
 
 function generateLineGraphSVG(labels, data, strokeColor, isKcal = false) {
@@ -263,6 +293,45 @@ function generateLineGraphSVG(labels, data, strokeColor, isKcal = false) {
         </svg>`;
 }
 
+// กราฟ SVG แสดงแยกประเภท 3 สารอาหาร (โปรตีน / คาร์บ / ไขมัน) เป็นหน่วย kcal
+function generateMultiMacroGraphSVG(labels, pData, cData, fData) {
+    if (!labels || labels.length === 0) return `<div class="text-center text-slate-400 text-xs py-10 font-light">ไม่มีสถิติสารอาหารบันทึกไว้ครับ 🔍</div>`;
+    const width = 340; const height = 180; const padding = 32;
+    let allVals = [...pData, ...cData, ...fData];
+    let maxVal = Math.max(...allVals, 100); let minVal = 0;
+
+    const graphWidth = width - (padding * 2); const graphHeight = height - (padding * 2);
+    const stepX = labels.length > 1 ? graphWidth / (labels.length - 1) : 0;
+
+    let buildLine = (data, color) => {
+        let points = [];
+        data.forEach((val, idx) => {
+            const x = labels.length === 1 ? width / 2 : padding + (idx * stepX);
+            const ratio = (val - minVal) / (maxVal - minVal);
+            const y = height - padding - (ratio * graphHeight);
+            points.push({x, y, val});
+        });
+        let pathD = `M ${points.map(p => `${p.x},${p.y}`).join(' L ')}`;
+        let circles = points.map(p => `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="#ffffff" stroke="${color}" stroke-width="2.5" />`).join('');
+        return `<path d="${pathD}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />${circles}`;
+    };
+
+    let xLabelsHtml = labels.map((lbl, idx) => {
+        const x = labels.length === 1 ? width / 2 : padding + (idx * stepX);
+        return `<text x="${x}" y="${height - 6}" font-size="10" font-weight="bold" fill="#64748b" text-anchor="middle">${escapeHtml(lbl)}</text>`;
+    }).join('');
+
+    return `
+        <svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" class="overflow-visible">
+            <line x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="3,3" />
+            <line x1="${padding}" y1="${padding}" x2="${width - padding}" y2="${padding}" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="3,3" />
+            ${labels.length > 1 ? buildLine(pData, '#3b82f6') : ''}
+            ${labels.length > 1 ? buildLine(cData, '#f97316') : ''}
+            ${labels.length > 1 ? buildLine(fData, '#eab308') : ''}
+            ${xLabelsHtml}
+        </svg>`;
+}
+
 function getWeekNumber(dateStr) {
     let d = new Date(dateStr);
     let oneJan = new Date(d.getFullYear(), 0, 1);
@@ -284,9 +353,11 @@ function renderStatsGraph(period) {
 
     const weightContainer = document.getElementById('weight-line-graph-container');
     const kcalContainer = document.getElementById('kcal-line-graph-container');
+    const macroContainer = document.getElementById('macro-line-graph-container');
 
     let labelsW = []; let weightData = [];
     let labelsK = []; let kcalData = [];
+    let labelsM = []; let pData = []; let cData = []; let fData = [];
 
     if (period === 'day') {
         let dayWGroup = {};
@@ -303,15 +374,24 @@ function renderStatsGraph(period) {
         });
 
         let dayKGroup = {};
+        let dayPGroup = {}, dayCGroup = {}, dayFGroup = {};
         localData.foods.forEach(item => {
             let iso = item.date || new Date().toISOString().split('T')[0];
-            if(!dayKGroup[iso]) dayKGroup[iso] = 0;
+            if(!dayKGroup[iso]) { dayKGroup[iso] = 0; dayPGroup[iso] = 0; dayCGroup[iso] = 0; dayFGroup[iso] = 0; }
             dayKGroup[iso] += item.cal;
+            dayPGroup[iso] += item.proteinCal || 0;
+            dayCGroup[iso] += item.carbsCal || 0;
+            dayFGroup[iso] += item.fatCal || 0;
         });
         let sortedKDates = Object.keys(dayKGroup).sort().slice(-5);
         sortedKDates.forEach(d => {
-            let p = d.split('-'); labelsK.push(`${parseInt(p[2])}/${parseInt(p[1])}`);
+            let p = d.split('-'); 
+            let lbl = `${parseInt(p[2])}/${parseInt(p[1])}`;
+            labelsK.push(lbl); labelsM.push(lbl);
             kcalData.push(Math.round(dayKGroup[d]));
+            pData.push(Math.round(dayPGroup[d]));
+            cData.push(Math.round(dayCGroup[d]));
+            fData.push(Math.round(dayFGroup[d]));
         });
 
     } else if (period === 'week') {
@@ -330,21 +410,26 @@ function renderStatsGraph(period) {
         });
 
         let weekKDayGroup = {};
+        let weekPDayGroup = {}, weekCDayGroup = {}, weekFDayGroup = {};
         localData.foods.forEach(item => {
             let iso = item.date || new Date().toISOString().split('T')[0];
             let wKey = getWeekNumber(iso);
-            if(!weekKDayGroup[wKey]) weekKDayGroup[wKey] = {};
-            if(!weekKDayGroup[wKey][iso]) weekKDayGroup[wKey][iso] = 0;
+            if(!weekKDayGroup[wKey]) { weekKDayGroup[wKey] = {}; weekPDayGroup[wKey] = {}; weekCDayGroup[wKey] = {}; weekFDayGroup[wKey] = {}; }
+            if(!weekKDayGroup[wKey][iso]) { weekKDayGroup[wKey][iso] = 0; weekPDayGroup[wKey][iso] = 0; weekCDayGroup[wKey][iso] = 0; weekFDayGroup[wKey][iso] = 0; }
             weekKDayGroup[wKey][iso] += item.cal;
+            weekPDayGroup[wKey][iso] += item.proteinCal || 0;
+            weekCDayGroup[wKey][iso] += item.carbsCal || 0;
+            weekFDayGroup[wKey][iso] += item.fatCal || 0;
         });
         let sortedWeeksK = Object.keys(weekKDayGroup).sort().slice(-5);
         sortedWeeksK.forEach(w => {
-            labelsK.push(`สัปดาห์ ${w.split('-W')[1]}`);
-            let daysMap = weekKDayGroup[w];
-            let totalKcal = Object.values(daysMap).reduce((s,v)=>s+v, 0);
-            let daysCount = Object.keys(daysMap).length;
-            let dailyAvg = daysCount > 0 ? Math.round(totalKcal / daysCount) : 0;
-            kcalData.push(dailyAvg);
+            let lbl = `สัปดาห์ ${w.split('-W')[1]}`;
+            labelsK.push(lbl); labelsM.push(lbl);
+            let daysCount = Object.keys(weekKDayGroup[w]).length;
+            kcalData.push(daysCount > 0 ? Math.round(Object.values(weekKDayGroup[w]).reduce((a,b)=>a+b,0) / daysCount) : 0);
+            pData.push(daysCount > 0 ? Math.round(Object.values(weekPDayGroup[w]).reduce((a,b)=>a+b,0) / daysCount) : 0);
+            cData.push(daysCount > 0 ? Math.round(Object.values(weekCDayGroup[w]).reduce((a,b)=>a+b,0) / daysCount) : 0);
+            fData.push(daysCount > 0 ? Math.round(Object.values(weekFDayGroup[w]).reduce((a,b)=>a+b,0) / daysCount) : 0);
         });
 
     } else if (period === 'month') {
@@ -363,26 +448,32 @@ function renderStatsGraph(period) {
         });
 
         let monthKDayGroup = {};
+        let monthPDayGroup = {}, monthCDayGroup = {}, monthFDayGroup = {};
         localData.foods.forEach(item => {
             let iso = item.date || new Date().toISOString().split('T')[0];
             let p = iso.split('-'); let mKey = `${p[0]}-${p[1]}`;
-            if(!monthKDayGroup[mKey]) monthKDayGroup[mKey] = {};
-            if(!monthKDayGroup[mKey][iso]) monthKDayGroup[mKey][iso] = 0;
+            if(!monthKDayGroup[mKey]) { monthKDayGroup[mKey] = {}; monthPDayGroup[mKey] = {}; monthCDayGroup[mKey] = {}; monthFDayGroup[mKey] = {}; }
+            if(!monthKDayGroup[mKey][iso]) { monthKDayGroup[mKey][iso] = 0; monthPDayGroup[mKey][iso] = 0; monthCDayGroup[mKey][iso] = 0; monthFDayGroup[mKey][iso] = 0; }
             monthKDayGroup[mKey][iso] += item.cal;
+            monthPDayGroup[mKey][iso] += item.proteinCal || 0;
+            monthCDayGroup[mKey][iso] += item.carbsCal || 0;
+            monthFDayGroup[mKey][iso] += item.fatCal || 0;
         });
         let sortedMonthsK = Object.keys(monthKDayGroup).sort().slice(-5);
         sortedMonthsK.forEach(m => {
-            labelsK.push(getThaiMonthLabel(parseInt(m.split('-')[1]) - 1));
-            let daysMap = monthKDayGroup[m];
-            let totalKcal = Object.values(daysMap).reduce((s,v)=>s+v, 0);
-            let daysCount = Object.keys(daysMap).length;
-            let dailyAvg = daysCount > 0 ? Math.round(totalKcal / daysCount) : 0;
-            kcalData.push(dailyAvg);
+            let lbl = getThaiMonthLabel(parseInt(m.split('-')[1]) - 1);
+            labelsK.push(lbl); labelsM.push(lbl);
+            let daysCount = Object.keys(monthKDayGroup[m]).length;
+            kcalData.push(daysCount > 0 ? Math.round(Object.values(monthKDayGroup[m]).reduce((a,b)=>a+b,0) / daysCount) : 0);
+            pData.push(daysCount > 0 ? Math.round(Object.values(monthPDayGroup[m]).reduce((a,b)=>a+b,0) / daysCount) : 0);
+            cData.push(daysCount > 0 ? Math.round(Object.values(monthCDayGroup[m]).reduce((a,b)=>a+b,0) / daysCount) : 0);
+            fData.push(daysCount > 0 ? Math.round(Object.values(monthFDayGroup[m]).reduce((a,b)=>a+b,0) / daysCount) : 0);
         });
     }
 
     weightContainer.innerHTML = generateLineGraphSVG(labelsW, weightData, '#0ea5e9', false);
     kcalContainer.innerHTML = generateLineGraphSVG(labelsK, kcalData, '#f59e0b', true);
+    if(macroContainer) macroContainer.innerHTML = generateMultiMacroGraphSVG(labelsM, pData, cData, fData);
 }
 
 function parseTimeString(timeInput) {
@@ -813,24 +904,140 @@ function displayData() {
     });
 }
 
-function showSuggestions(val) { const box = document.getElementById('suggestion-box'); if (!val.trim()) { box.classList.add('hidden'); return; } const currentDb = getFullMenuDb(); let matches = Object.keys(currentDb).filter(menu => menu.toLowerCase().includes(val.toLowerCase())); if (matches.length > 0) { box.innerHTML = matches.map(menu => `<div onclick="selectSuggestion('${escapeHtml(menu)}', ${currentDb[menu]})" class="p-3 text-xs text-slate-800 cursor-pointer hover:bg-slate-50 font-medium border-b border-slate-50 last:border-0">✨ ${escapeHtml(menu)} <span class="text-emerald-600 font-bold float-right">${currentDb[menu]} kcal</span></div>`).join(''); box.classList.remove('hidden'); } else { box.classList.add('hidden'); } }
-function selectSuggestion(name, cal) { document.getElementById('food-input').value = name; document.getElementById('cal-input').value = cal; document.getElementById('suggestion-box').classList.add('hidden'); }
-function addNewMenuToSystem() { const foodInput = document.getElementById('food-input').value.trim(); const calInput = document.getElementById('cal-input').value.trim(); if (!foodInput || !calInput) return alert("กรอกข้อมูลให้ครบก่อนครับ"); if(!localData.customMenu) localData.customMenu = {}; localData.customMenu[foodInput] = parseInt(calInput); saveData(); alert("เพิ่มเมนูโภชนาการเข้าคลังเรียบร้อย!"); }
-window.openMenuModal = function() { const modal = document.getElementById('menu-modal'); const listEl = document.getElementById('modal-menu-list'); listEl.innerHTML = ""; const currentDb = getFullMenuDb(); for (let menu in currentDb) { listEl.innerHTML += `<div class="flex justify-between py-2.5 border-b border-slate-100 text-xs font-medium"><span>${escapeHtml(menu)}</span><span class="font-bold text-emerald-600">${currentDb[menu]} kcal</span></div>`; } modal.classList.remove('hidden'); }
+function showSuggestions(val) { 
+    const box = document.getElementById('suggestion-box'); 
+    if (!val.trim()) { box.classList.add('hidden'); return; } 
+    const currentDb = getFullMenuDb(); 
+    let matches = Object.keys(currentDb).filter(menu => menu.toLowerCase().includes(val.toLowerCase())); 
+    if (matches.length > 0) { 
+        box.innerHTML = matches.map(menu => {
+            let item = currentDb[menu];
+            let cal = typeof item === 'object' ? item.cal : item;
+            let pCal = typeof item === 'object' ? item.proteinCal : Math.round(cal*0.25);
+            let cCal = typeof item === 'object' ? item.carbsCal : Math.round(cal*0.50);
+            let fCal = typeof item === 'object' ? item.fatCal : Math.round(cal*0.25);
+            return `<div onclick="selectSuggestion('${escapeHtml(menu)}', ${cal}, ${pCal}, ${cCal}, ${fCal})" class="p-3 text-xs text-slate-800 cursor-pointer hover:bg-slate-50 font-medium border-b border-slate-50 last:border-0">✨ ${escapeHtml(menu)} <span class="text-emerald-600 font-bold float-right">${cal} kcal</span></div>`;
+        }).join(''); 
+        box.classList.remove('hidden'); 
+    } else { box.classList.add('hidden'); } 
+}
+
+function selectSuggestion(name, cal, pCal, cCal, fCal) { 
+    document.getElementById('food-input').value = name; 
+    document.getElementById('cal-input').value = cal;
+    document.getElementById('protein-cal-input').value = pCal;
+    document.getElementById('carbs-cal-input').value = cCal;
+    document.getElementById('fat-cal-input').value = fCal;
+    document.getElementById('suggestion-box').classList.add('hidden'); 
+}
+
+function autoSplitMacrosByCal() {
+    let cal = parseInt(document.getElementById('cal-input').value) || 0;
+    if(cal > 0) {
+        document.getElementById('protein-cal-input').value = Math.round(cal * 0.25);
+        document.getElementById('carbs-cal-input').value = Math.round(cal * 0.50);
+        document.getElementById('fat-cal-input').value = Math.round(cal * 0.25);
+    }
+}
+
+function addNewMenuToSystem() { 
+    const foodInput = document.getElementById('food-input').value.trim(); 
+    const calInput = parseInt(document.getElementById('cal-input').value) || 0; 
+    const pCal = parseInt(document.getElementById('protein-cal-input').value) || Math.round(calInput * 0.25);
+    const cCal = parseInt(document.getElementById('carbs-cal-input').value) || Math.round(calInput * 0.50);
+    const fCal = parseInt(document.getElementById('fat-cal-input').value) || Math.round(calInput * 0.25);
+
+    if (!foodInput || calInput <= 0) return alert("กรอกข้อมูลให้ครบก่อนครับ"); 
+    if(!localData.customMenu) localData.customMenu = {}; 
+    
+    localData.customMenu[foodInput] = { cal: calInput, proteinCal: pCal, carbsCal: cCal, fatCal: fCal }; 
+    saveData(); alert("เพิ่มเมนูโภชนาการเข้าคลังเรียบร้อย!"); 
+}
+
+window.openMenuModal = function() { 
+    const modal = document.getElementById('menu-modal'); 
+    const listEl = document.getElementById('modal-menu-list'); 
+    listEl.innerHTML = ""; 
+    const currentDb = getFullMenuDb(); 
+    for (let menu in currentDb) { 
+        let item = currentDb[menu];
+        let cal = typeof item === 'object' ? item.cal : item;
+        listEl.innerHTML += `<div class="flex justify-between py-2.5 border-b border-slate-100 text-xs font-medium"><span>${escapeHtml(menu)}</span><span class="font-bold text-emerald-600">${cal} kcal</span></div>`; 
+    } 
+    modal.classList.remove('hidden'); 
+}
+
 window.closeMenuModal = function() { document.getElementById('menu-modal').classList.add('hidden'); }
-function addFoodDirect() { const f = document.getElementById('food-input'); const c = document.getElementById('cal-input'); const d = document.getElementById('diet-log-date').value; if(!f.value || !c.value || !d) return alert("ระบุข้อมูลอาหารและวันที่บันทึกให้ครบก่อนครับ"); localData.foods.push({ id: Date.now(), name: f.value.trim(), cal: parseInt(c.value) || 0, date: d }); f.value = ''; c.value = ''; clearImagePreview(); saveData(); renderFoods(); confetti({ particleCount: 10, spread: 20, colors: ['#059669'] }); }
+
+function addFoodDirect() { 
+    const f = document.getElementById('food-input'); 
+    const c = document.getElementById('cal-input'); 
+    const pCal = parseInt(document.getElementById('protein-cal-input').value) || 0;
+    const cCal = parseInt(document.getElementById('carbs-cal-input').value) || 0;
+    const fCal = parseInt(document.getElementById('fat-cal-input').value) || 0;
+    const d = document.getElementById('diet-log-date').value; 
+
+    if(!f.value || !c.value || !d) return alert("ระบุข้อมูลอาหารและวันที่บันทึกให้ครบก่อนครับ"); 
+    let calVal = parseInt(c.value) || 0;
+
+    localData.foods.push({ 
+        id: Date.now(), 
+        name: f.value.trim(), 
+        cal: calVal, 
+        proteinCal: pCal || Math.round(calVal * 0.25),
+        carbsCal: cCal || Math.round(calVal * 0.50),
+        fatCal: fCal || Math.round(calVal * 0.25),
+        date: d 
+    }); 
+
+    f.value = ''; c.value = ''; 
+    document.getElementById('protein-cal-input').value = '';
+    document.getElementById('carbs-cal-input').value = '';
+    document.getElementById('fat-cal-input').value = '';
+    clearImagePreview(); saveData(); renderFoods(); confetti({ particleCount: 10, spread: 20, colors: ['#059669'] }); 
+}
+
 window.deleteFood = function(id) { localData.foods = localData.foods.filter(i => i.id !== id); saveData(); renderFoods(); }
 
 function renderFoods() {
     const list = document.getElementById('food-list'); const targetDate = document.getElementById('diet-log-date').value; if(!targetDate) return;
-    let safeFoods = localData.foods || []; let filteredFoods = safeFoods.filter(food => { if(!food.date) { let todayStr = new Date().toISOString().split('T')[0]; return todayStr === targetDate; } return food.date === targetDate; });
-    let total = filteredFoods.reduce((sum, item) => sum + item.cal, 0);
+    let safeFoods = localData.foods || []; 
+    let filteredFoods = safeFoods.filter(food => { if(!food.date) { let todayStr = new Date().toISOString().split('T')[0]; return todayStr === targetDate; } return food.date === targetDate; });
+    
+    let total = 0; let totalP = 0; let totalC = 0; let totalF = 0;
+    filteredFoods.forEach(item => {
+        total += item.cal;
+        totalP += item.proteinCal || 0;
+        totalC += item.carbsCal || 0;
+        totalF += item.fatCal || 0;
+    });
+
     list.innerHTML = filteredFoods.map(food => `<li class="flex justify-between items-center py-3 border-b border-slate-100"><span class="text-slate-800 text-xs font-medium">${escapeHtml(food.name)} <span class="text-xs bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-md ml-1.5">${food.cal} kcal</span></span><button onclick="deleteFood(${food.id})" class="text-rose-500 font-bold px-2 py-1 hover:text-rose-700 text-sm">✕</button></li>`).join('');
     if (filteredFoods.length === 0) { list.innerHTML = `<li class="py-5 text-slate-400 text-center text-xs font-light">ไม่มีประวัติการบริโภคอาหารในวันนี้</li>`; }
-    updateCalorieDisplay(total);
+    
+    updateCalorieDisplay(total, totalP, totalC, totalF);
 }
 
-function updateCalorieDisplay(total) { let finalTarget = 2000; const targetEl = document.getElementById('target-cal'); if (targetEl) finalTarget = parseInt(targetEl.innerText) || finalTarget; const totalEl = document.getElementById('total-cal'); if (totalEl) { totalEl.innerText = total; totalEl.className = total > finalTarget ? "text-rose-500 font-black text-base" : "text-emerald-600 font-black text-base"; } }
+function updateCalorieDisplay(total, totalP, totalC, totalF) { 
+    let finalTarget = 2000; 
+    const targetEl = document.getElementById('target-cal'); 
+    if (targetEl) finalTarget = parseInt(targetEl.innerText) || finalTarget; 
+    const totalEl = document.getElementById('total-cal'); 
+    if (totalEl) { totalEl.innerText = total; totalEl.className = total > finalTarget ? "text-rose-500 font-black text-base" : "text-emerald-600 font-black text-base"; } 
+
+    // โควตาสารอาหารย่อย (โปรตีน 30% / คาร์บ 45% / ไขมัน 25%)
+    let targetP = Math.round(finalTarget * 0.30);
+    let targetC = Math.round(finalTarget * 0.45);
+    let targetF = Math.round(finalTarget * 0.25);
+
+    if(document.getElementById('p-cal-val')) document.getElementById('p-cal-val').innerText = `${totalP} / ${targetP}`;
+    if(document.getElementById('c-cal-val')) document.getElementById('c-cal-val').innerText = `${totalC} / ${targetC}`;
+    if(document.getElementById('f-cal-val')) document.getElementById('f-cal-val').innerText = `${totalF} / ${targetF}`;
+
+    if(document.getElementById('p-progress')) document.getElementById('p-progress').style.width = `${Math.min(100, Math.round((totalP/targetP)*100))}%`;
+    if(document.getElementById('c-progress')) document.getElementById('c-progress').style.width = `${Math.min(100, Math.round((totalC/targetC)*100))}%`;
+    if(document.getElementById('f-progress')) document.getElementById('f-progress').style.width = `${Math.min(100, Math.round((totalF/targetF)*100))}%`;
+}
 
 function renderCalendarWidget() {
     const container = document.getElementById('calendar-widget-container'); 

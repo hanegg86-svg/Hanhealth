@@ -183,6 +183,9 @@ function importIcsCalendar(event) {
     reader.readAsText(file);
 }
 
+// ==========================================
+// 🍳 GEMINI FOOD & MACRO EXTRACTOR ENGINE
+// ==========================================
 async function fetchCalorieFromGemini(foodName, base64Image = null, mimeType = null) {
     const apiKey = getStoredApiKey();
     if (!apiKey) {
@@ -196,9 +199,9 @@ async function fetchCalorieFromGemini(foodName, base64Image = null, mimeType = n
     
     if (base64Image) {
         partsPayload.push({ inline_data: { mime_type: mimeType, data: base64Image } });
-        partsPayload.push({ text: `วิเคราะห์รูปอาหารนี้ ตอบกลับในรูปแบบ JSON สั้นๆ เท่านั้น ตัวอย่าง: {"name": "ข้าวมันไก่", "cal": 590}` });
+        partsPayload.push({ text: `วิเคราะห์รูปอาหารนี้ ตอบกลับในรูปแบบ JSON สั้นๆ เท่านั้น ตัวอย่าง: {"name": "ข้าวมันไก่", "cal": 596, "protein_cal": 96, "carbs_cal": 276, "fat_cal": 224}` });
     } else {
-        partsPayload.push({ text: `ประเมินพลังงาน (kcal) ของเมนูอาหารต่อไปนี้: "${foodName}" ตอบกลับเฉพาะ **ตัวเลขแคลอรีบริสุทธิ์เท่านั้น** (ไม่ต้องใส่หน่วย ไม่ต้องมีคำอธิบาย เช่น 550)` });
+        partsPayload.push({ text: `ประเมินโภชนาการของเมนูอาหารต่อไปนี้: "${foodName}" ตอบกลับในรูปแบบ JSON เท่านั้น ตัวอย่าง: {"name": "${foodName}", "cal": 550, "protein_cal": 100, "carbs_cal": 250, "fat_cal": 200}` });
     }
 
     try {
@@ -219,17 +222,19 @@ async function fetchCalorieFromGemini(foodName, base64Image = null, mimeType = n
         const data = await response.json();
         if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
             const textResult = data.candidates[0].content.parts[0].text.trim();
-            if (base64Image) {
-                try {
-                    const cleanJson = textResult.replace(/```json/g, '').replace(/```/g, '').trim();
-                    return JSON.parse(cleanJson);
-                } catch(e) {
-                    const calMatch = textResult.match(/\d+/);
-                    return { name: "อาหารในภาพ", cal: calMatch ? parseInt(calMatch[0]) : 500 };
-                }
-            } else {
-                const calorie = parseInt(textResult.replace(/[^0-9]/g, ''));
-                return isNaN(calorie) ? null : calorie;
+            try {
+                const cleanJson = textResult.replace(/```json/g, '').replace(/```/g, '').trim();
+                return JSON.parse(cleanJson);
+            } catch(e) {
+                const calMatch = textResult.match(/\d+/);
+                let cal = calMatch ? parseInt(calMatch[0]) : 500;
+                return { 
+                    name: foodName || "อาหารในภาพ", 
+                    cal: cal,
+                    protein_cal: Math.round(cal * 0.25),
+                    carbs_cal: Math.round(cal * 0.50),
+                    fat_cal: Math.round(cal * 0.25)
+                };
             }
         }
         return null;
@@ -264,12 +269,26 @@ async function handleImageCalorieEstimate(event) {
         if (result && result.cal) {
             if(result.name) foodInput.value = result.name;
             calInput.value = result.cal;
+            
+            let pCal = result.protein_cal || Math.round(result.cal * 0.25);
+            let cCal = result.carbs_cal || Math.round(result.cal * 0.50);
+            let fCal = result.fat_cal || Math.round(result.cal * 0.25);
+
+            if(document.getElementById('protein-cal-input')) document.getElementById('protein-cal-input').value = pCal;
+            if(document.getElementById('carbs-cal-input')) document.getElementById('carbs-cal-input').value = cCal;
+            if(document.getElementById('fat-cal-input')) document.getElementById('fat-cal-input').value = fCal;
+
             statusText.innerText = `✨ วิเคราะห์เสร็จสิ้น: ${escapeHtml(result.name || 'จานนี้')} (~${result.cal} kcal)`;
             confetti({ particleCount: 15, spread: 30, colors: ['#059669'] });
             
             if (result.name && result.cal) {
                 if (!localData.customMenu) localData.customMenu = {};
-                localData.customMenu[result.name] = result.cal;
+                localData.customMenu[result.name] = {
+                    cal: result.cal,
+                    proteinCal: pCal,
+                    carbsCal: cCal,
+                    fatCal: fCal
+                };
                 saveData();
             }
         } else {
@@ -292,24 +311,41 @@ async function manualCalculateCalorie() {
     if (!foodInput) return alert("กรุณาพิมพ์ชื่อเมนูอาหารก่อนครับ");
 
     const currentDb = getFullMenuDb();
-    let foundCal = currentDb[foodInput] || null;
+    let foundItem = currentDb[foodInput] || null;
 
-    if (foundCal) {
-        calInput.value = foundCal;
+    if (foundItem) {
+        let cal = typeof foundItem === 'object' ? foundItem.cal : foundItem;
+        calInput.value = cal;
+        if(document.getElementById('protein-cal-input')) document.getElementById('protein-cal-input').value = typeof foundItem === 'object' ? foundItem.proteinCal : Math.round(cal * 0.25);
+        if(document.getElementById('carbs-cal-input')) document.getElementById('carbs-cal-input').value = typeof foundItem === 'object' ? foundItem.carbsCal : Math.round(cal * 0.50);
+        if(document.getElementById('fat-cal-input')) document.getElementById('fat-cal-input').value = typeof foundItem === 'object' ? foundItem.fatCal : Math.round(cal * 0.25);
         return;
     }
 
     calInput.placeholder = "🤖 กำลังประเมินด้วย Gemini AI...";
     calInput.value = "";
     
-    const aiCalorie = await fetchCalorieFromGemini(foodInput);
+    const result = await fetchCalorieFromGemini(foodInput);
 
-    if (aiCalorie) {
-        calInput.value = aiCalorie;
+    if (result && result.cal) {
+        calInput.value = result.cal;
         calInput.placeholder = "กรอกเองหรือระบบคำนวณ...";
+
+        let pCal = result.protein_cal || Math.round(result.cal * 0.25);
+        let cCal = result.carbs_cal || Math.round(result.cal * 0.50);
+        let fCal = result.fat_cal || Math.round(result.cal * 0.25);
+
+        if(document.getElementById('protein-cal-input')) document.getElementById('protein-cal-input').value = pCal;
+        if(document.getElementById('carbs-cal-input')) document.getElementById('carbs-cal-input').value = cCal;
+        if(document.getElementById('fat-cal-input')) document.getElementById('fat-cal-input').value = fCal;
         
         if (!localData.customMenu) localData.customMenu = {};
-        localData.customMenu[foodInput] = aiCalorie;
+        localData.customMenu[foodInput] = {
+            cal: result.cal,
+            proteinCal: pCal,
+            carbsCal: cCal,
+            fatCal: fCal
+        };
         saveData();
         confetti({ particleCount: 10, spread: 20, colors: ['#059669'] });
     } else {

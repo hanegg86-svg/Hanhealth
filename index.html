@@ -5,10 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Executive HQ & Wellness Tracker</title>
     
-    <!-- 📌 ลิงก์เชื่อมโยง Web App Manifest สำหรับสร้าง Shortcut หน้าจอมือถือ -->
     <link rel="manifest" href="manifest.json">
-
-    <!-- 📌 ไอคอนสำหรับ Web App, Favicon และ Apple Touch Icon -->
     <link rel="icon" type="image/png" sizes="32x32" href="hanhealth.png">
     <link rel="icon" type="image/png" sizes="192x192" href="hanhealth.png">
     <link rel="apple-touch-icon" sizes="180x180" href="hanhealth.png">
@@ -33,7 +30,6 @@
         <!-- 🏢 HEADER BANNER -->
         <header class="bg-slate-900 text-white sticky top-0 z-50 px-3 py-3 flex justify-between items-center shadow-md border-b border-slate-800">
             <div class="flex items-center gap-2 shrink-0">
-                <!-- 📌 ไอคอนรูปแอป hanhealth.png ใน Header -->
                 <img src="hanhealth.png" alt="HanHealth Logo" class="w-7 h-7 object-contain rounded-lg border border-emerald-500/30 shadow-xs">
                 <h1 class="text-xs sm:text-sm font-bold tracking-wide text-slate-100">EXECUTIVE HQ</h1>
             </div>
@@ -68,7 +64,6 @@
                             <i class="fa-solid fa-square-plus text-emerald-600 text-base"></i> บันทึกแผนงาน & สุขภาพ:
                         </label>
                         <div class="flex gap-1.5 flex-wrap">
-                            <!-- 📸 ปุ่มสแกนตารางงานจากรูปภาพด้วย Gemini AI -->
                             <button onclick="document.getElementById('schedule-camera-input').click()" title="ถ่ายรูปสแกนตารางงาน" class="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs px-2.5 py-1.5 rounded-xl font-semibold transition-all active:scale-95 flex items-center gap-1">
                                 <i class="fa-solid fa-camera text-amber-600"></i> สแกนรูป
                             </button>
@@ -84,7 +79,6 @@
                         </div>
                     </div>
 
-                    <!-- 🖼️ สแตนด์บายพรีวิวภาพตารางงานขณะสแกน -->
                     <div id="schedule-img-preview-box" class="hidden relative bg-slate-50 border border-slate-200 p-2.5 rounded-xl flex items-center gap-3">
                         <img id="schedule-img-preview" src="" class="w-12 h-12 object-cover rounded-lg border border-slate-200">
                         <div class="flex-1 overflow-hidden">
@@ -129,7 +123,7 @@
                 </div>
             </div>
 
-            <!-- 🏃‍♂️ TAB 3: HEALTH & BMI -->
+            <!-- 🏃‍♂️ TAB 3: HEALTH & BMI & TDEE -->
             <div id="health-section" class="space-y-4 hidden">
                 <div class="bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-950 rounded-2xl p-5 text-white shadow-md border border-slate-800 space-y-4">
                     <h2 class="text-base font-bold mb-1 flex items-center gap-2"><i class="fa-solid fa-heart-pulse text-emerald-400"></i>ข้อมูลดัชนีร่างกาย & เป้าหมายสุขภาพ</h2>
@@ -137,11 +131,47 @@
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-medium text-slate-300 mb-1">น้ำหนัก (กก.) *ล่าสุด</label>
-                            <input type="number" step="0.1" id="weight-input" value="70" oninput="calculateHealth()" class="w-full bg-slate-800/80 border border-slate-700 text-white rounded-xl px-3.5 py-2.5 text-sm focus:outline-none font-bold focus:border-emerald-500">
+                            <input type="number" step="0.1" id="weight-input" value="85" oninput="calculateHealth()" class="w-full bg-slate-800/80 border border-slate-700 text-white rounded-xl px-3.5 py-2.5 text-sm focus:outline-none font-bold focus:border-emerald-500">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-slate-300 mb-1">ส่วนสูง (ซม.)</label>
-                            <input type="number" id="height-input" value="175" oninput="calculateHealth()" class="w-full bg-slate-800/80 border border-slate-700 text-white rounded-xl px-3.5 py-2.5 text-sm focus:outline-none font-bold focus:border-emerald-500">
+                            <input type="number" id="height-input" value="176" oninput="calculateHealth()" class="w-full bg-slate-800/80 border border-slate-700 text-white rounded-xl px-3.5 py-2.5 text-sm focus:outline-none font-bold focus:border-emerald-500">
+                        </div>
+                    </div>
+
+                    <!-- ฟิลด์เพิ่มเติมสำหรับ TDEE คำแนะนำ -->
+                    <div class="grid grid-cols-3 gap-2 text-xs">
+                        <div>
+                            <label class="block text-[10px] text-slate-400 mb-1 font-medium">เพศ</label>
+                            <select id="user-gender" onchange="calculateHealth()" class="w-full bg-slate-800 border border-slate-700 text-white rounded-lg p-2 font-bold focus:outline-none">
+                                <option value="male" selected>ชาย</option>
+                                <option value="female">หญิง</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-400 mb-1 font-medium">อายุ (ปี)</label>
+                            <input type="number" id="user-age" value="42" oninput="calculateHealth()" class="w-full bg-slate-800 border border-slate-700 text-white rounded-lg p-2 font-bold focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-400 mb-1 font-medium">การออกกำลังกาย</label>
+                            <select id="user-activity" onchange="calculateHealth()" class="w-full bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-[11px] font-bold focus:outline-none">
+                                <option value="1.2">น้อยมาก</option>
+                                <option value="1.375">1-3 วัน/สัปดาห์</option>
+                                <option value="1.55" selected>3-5 วัน/สัปดาห์</option>
+                                <option value="1.725">6-7 วัน/สัปดาห์</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- กล่องแสดง BMR & TDEE คำแนะนำ -->
+                    <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 flex justify-around text-center">
+                        <div>
+                            <p class="text-[10px] text-slate-400 uppercase">BMR คำนวณพักผ่อน</p>
+                            <p class="text-sm font-bold text-amber-400 mt-0.5"><span id="bmr-display">1,695</span> kcal</p>
+                        </div>
+                        <div class="border-l border-slate-800 pl-4">
+                            <p class="text-[10px] text-slate-400 uppercase">TDEE พลังงานแนะนำ</p>
+                            <p class="text-sm font-bold text-emerald-400 mt-0.5"><span id="tdee-display">2,627</span> kcal</p>
                         </div>
                     </div>
 
@@ -151,13 +181,16 @@
                     </div>
 
                     <div class="bg-slate-950/60 p-3.5 rounded-xl space-y-2.5 border border-slate-800">
-                        <label class="block text-xs font-semibold text-slate-200"><i class="fa-solid fa-bullseye text-emerald-400 mr-1.5"></i> เกณฑ์ตั้งเป้าหมายพลังงานต่อวัน:</label>
+                        <div class="flex justify-between items-center">
+                            <label class="block text-xs font-semibold text-slate-200"><i class="fa-solid fa-bullseye text-emerald-400 mr-1.5"></i> เกณฑ์ตั้งเป้าหมายพลังงานต่อวัน:</label>
+                            <button onclick="applyTdeeAsTarget()" class="text-[10px] bg-emerald-600/40 hover:bg-emerald-600 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-md font-semibold transition-all">ใช้ค่า TDEE นี้</button>
+                        </div>
                         <div class="grid grid-cols-2 gap-2 text-xs font-bold">
-                            <button id="mode-bmi-btn" onclick="setCalorieMode('bmi')" class="bg-white text-slate-900 py-2 rounded-lg shadow-sm transition-all">แนะนำตาม BMI</button>
+                            <button id="mode-bmi-btn" onclick="setCalorieMode('bmi')" class="bg-white text-slate-900 py-2 rounded-lg shadow-sm transition-all">ใช้ TDEE แนะนำ</button>
                             <button id="mode-custom-btn" onclick="setCalorieMode('custom')" class="bg-transparent text-white border border-slate-700 py-2 rounded-lg transition-all">กำหนดเป้าหมายเอง</button>
                         </div>
                         <div id="custom-cal-box" class="hidden pt-1">
-                            <input type="number" id="custom-cal-input" oninput="saveCustomCalorieTarget(this.value)" placeholder="กรอกแคลอรีที่ต้องการ เช่น 1800" class="w-full bg-white text-slate-900 rounded-xl px-3 py-2 text-xs font-bold focus:outline-none">
+                            <input type="number" id="custom-cal-input" oninput="saveCustomCalorieTarget(this.value)" placeholder="กรอกแคลอรีที่ต้องการ เช่น 2127" class="w-full bg-white text-slate-900 rounded-xl px-3 py-2 text-xs font-bold focus:outline-none">
                         </div>
                     </div>
                     
@@ -168,11 +201,11 @@
                     <div class="flex justify-between items-center bg-slate-950/40 p-3.5 rounded-xl border border-slate-800">
                         <div>
                             <p class="text-xs text-slate-400">ดัชนีมวลกาย (BMI)</p>
-                            <p id="bmi-value" class="text-2xl font-black tracking-tight text-white mt-0.5">22.9</p>
+                            <p id="bmi-value" class="text-2xl font-black tracking-tight text-white mt-0.5">27.4</p>
                         </div>
                         <div class="text-right">
                             <p class="text-xs text-slate-400">สถานะสุขภาพ</p>
-                            <p id="bmi-status" class="text-xs font-bold bg-emerald-500 text-white px-2.5 py-1 rounded-lg inline-block mt-1">สมส่วน</p>
+                            <p id="bmi-status" class="text-xs font-bold bg-rose-500 text-white px-2.5 py-1 rounded-lg inline-block mt-1">น้ำหนักเกิน</p>
                         </div>
                     </div>
                 </div>
@@ -262,8 +295,24 @@
                         </div>
 
                         <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1.5">2. ค่าพลังงาน (kcal)</label>
-                            <input type="number" id="cal-input" placeholder="กรอกเองหรือระบบคำนวณ..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-emerald-500 font-bold text-emerald-600">
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1.5">2. พลังงานรวม (kcal)</label>
+                            <input type="number" id="cal-input" oninput="autoSplitMacrosByCal()" placeholder="กรอกเองหรือระบบคำนวณ..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-emerald-500 font-bold text-emerald-600">
+                        </div>
+
+                        <!-- ช่องระบุแคลอรีสารอาหารแยกประเภท -->
+                        <div class="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
+                            <div>
+                                <label class="block text-[10px] font-bold text-blue-600 mb-1">โปรตีน (kcal)</label>
+                                <input type="number" id="protein-cal-input" placeholder="0" class="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs font-bold text-slate-800 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-orange-600 mb-1">คาร์บ (kcal)</label>
+                                <input type="number" id="carbs-cal-input" placeholder="0" class="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs font-bold text-slate-800 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-amber-600 mb-1">ไขมัน (kcal)</label>
+                                <input type="number" id="fat-cal-input" placeholder="0" class="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs font-bold text-slate-800 focus:outline-none">
+                            </div>
                         </div>
                     </div>
 
@@ -272,11 +321,43 @@
                         <button onclick="addNewMenuToSystem()" class="bg-emerald-600 text-white py-3 rounded-xl text-xs font-bold transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-1.5">➕ เพิ่มเข้าคลังเมนู</button>
                     </div>
 
-                    <div class="mt-4 pt-4 border-t border-slate-100">
-                        <div class="flex justify-between items-center mb-3 text-xs font-bold">
+                    <div class="mt-4 pt-4 border-t border-slate-100 space-y-3">
+                        <div class="flex justify-between items-center text-xs font-bold">
                             <span class="text-slate-700 text-sm">สรุปพลังงานมื้อประจำวัน:</span>
                             <div class="text-sm"><span id="total-cal" class="text-emerald-600 text-base font-black">0</span> / <span id="limit-cal" class="text-slate-600 font-bold">2000</span> kcal</div>
                         </div>
+
+                        <!-- Progress Bars ติดตามสัดส่วน 3 สารอาหาร -->
+                        <div class="bg-slate-50 border border-slate-200/80 p-3 rounded-xl space-y-2 text-xs">
+                            <div>
+                                <div class="flex justify-between text-[11px] font-semibold text-slate-600 mb-1">
+                                    <span>🟦 โปรตีน (kcal)</span>
+                                    <span id="p-cal-val" class="font-bold text-blue-600">0 / 600</span>
+                                </div>
+                                <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                                    <div id="p-progress" class="bg-blue-500 h-2 rounded-full transition-all" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-[11px] font-semibold text-slate-600 mb-1">
+                                    <span>🟧 คาร์โบไฮเดรต (kcal)</span>
+                                    <span id="c-cal-val" class="font-bold text-orange-600">0 / 900</span>
+                                </div>
+                                <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                                    <div id="c-progress" class="bg-orange-500 h-2 rounded-full transition-all" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-[11px] font-semibold text-slate-600 mb-1">
+                                    <span>🟨 ไขมัน (kcal)</span>
+                                    <span id="f-cal-val" class="font-bold text-amber-600">0 / 500</span>
+                                </div>
+                                <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                                    <div id="f-progress" class="bg-amber-500 h-2 rounded-full transition-all" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+
                         <ul id="food-list" class="divide-y divide-slate-100 max-h-48 overflow-y-auto text-xs font-medium"></ul>
                     </div>
                 </div>
@@ -304,6 +385,19 @@
                         <div>
                             <h4 class="text-xs font-bold text-slate-600 mb-3 uppercase tracking-wide flex items-center gap-1.5"><i class="fa-solid fa-bolt text-amber-500"></i> อัตราการบริโภคพลังงานรวม</h4>
                             <div id="kcal-line-graph-container" class="bg-slate-50 rounded-2xl p-2.5 border border-slate-100"></div>
+                        </div>
+
+                        <hr class="border-slate-100">
+
+                        <!-- การ์ดกราฟแยกประเภทสารอาหาร -->
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-600 mb-1 uppercase tracking-wide flex items-center gap-1.5"><i class="fa-solid fa-pie-chart text-blue-500"></i> แนวโน้มสารอาหารแยกประเภท (kcal)</h4>
+                            <div class="flex gap-3 text-[10px] font-bold mb-2 text-slate-500 px-1">
+                                <span class="text-blue-600">🟦 โปรตีน</span>
+                                <span class="text-orange-500">🟧 คาร์บ</span>
+                                <span class="text-amber-500">🟨 ไขมัน</span>
+                            </div>
+                            <div id="macro-line-graph-container" class="bg-slate-50 rounded-2xl p-2.5 border border-slate-100"></div>
                         </div>
                     </div>
                 </div>

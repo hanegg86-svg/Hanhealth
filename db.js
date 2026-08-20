@@ -2,6 +2,54 @@ function saveData() {
     localStorage.setItem(DB_KEY, JSON.stringify(localData)); 
 }
 
+// ระบบ Migration ข้อมูลเก่าเป็นแคลอรีสารอาหารแยกประเภทอัตโนมัติ
+function migrateOldDataToKcalMacros() {
+    let updated = false;
+
+    // 1. แปลงคลังอาหารผู้ใช้เก่า (customMenu)
+    if (localData.customMenu) {
+        for (let menu in localData.customMenu) {
+            let item = localData.customMenu[menu];
+            if (typeof item === 'number') {
+                let cal = item;
+                localData.customMenu[menu] = {
+                    cal: cal,
+                    proteinCal: Math.round(cal * 0.25),
+                    carbsCal: Math.round(cal * 0.50),
+                    fatCal: Math.round(cal * 0.25)
+                };
+                updated = true;
+            }
+        }
+    }
+
+    // 2. แปลงประวัติการกินอาหารย้อนหลัง (foods)
+    if (localData.foods && localData.foods.length > 0) {
+        localData.foods.forEach(food => {
+            if (food.proteinCal === undefined || food.carbsCal === undefined || food.fatCal === undefined) {
+                let currentDb = { ...defaultMenuDb, ...(localData.customMenu || {}) };
+                if (currentDb[food.name] && typeof currentDb[food.name] === 'object') {
+                    food.proteinCal = currentDb[food.name].proteinCal || Math.round(food.cal * 0.25);
+                    food.carbsCal = currentDb[food.name].carbsCal || Math.round(food.cal * 0.50);
+                    food.fatCal = currentDb[food.name].fatCal || Math.round(food.cal * 0.25);
+                } else {
+                    food.proteinCal = Math.round(food.cal * 0.25);
+                    food.carbsCal = Math.round(food.cal * 0.50);
+                    food.fatCal = Math.round(food.cal * 0.25);
+                }
+                updated = true;
+            }
+        });
+    }
+
+    if (updated) {
+        saveData();
+    }
+}
+
+// เรียกรัน Migration เมื่อโหลดไฟล์ db.js
+migrateOldDataToKcalMacros();
+
 function getStoredApiKey() { 
     return localStorage.getItem('GEMINI_USER_API_KEY') || ""; 
 }
@@ -66,9 +114,11 @@ function importData(event) {
                     customMenu: importedObj.customMenu || {}, 
                     weightLog: importedObj.weightLog || [],
                     calorieTargetMode: importedObj.calorieTargetMode || 'bmi', 
-                    customCalorieTarget: importedObj.customCalorieTarget || 2000
+                    customCalorieTarget: importedObj.customCalorieTarget || 2000,
+                    userProfile: importedObj.userProfile || { gender: 'male', age: 42, height: 176, activity: 1.55 }
                 };
                 saveData(); 
+                migrateOldDataToKcalMacros();
                 alert("📥 นำเข้าข้อมูลสำรองเรียบร้อยแล้วครับ! ระบบกำลังรีโหลด..."); 
                 window.location.reload();
             } else { 
