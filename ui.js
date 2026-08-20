@@ -212,13 +212,7 @@ function calculateHealth() {
         document.getElementById('bmi-status').className = `text-xs font-bold ${statusColor} text-white px-2.5 py-1 rounded-lg inline-block mt-1`;
         document.getElementById('workout-suggestion').innerHTML = suggestion;
         
-        // คำนวณ BMR & TDEE คำแนะนำ
-        let bmr = 0;
-        if (gender === 'male') {
-            bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
-        } else {
-            bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161;
-        }
+        let bmr = (gender === 'male') ? ((10 * weight) + (6.25 * height) - (5 * age) + 5) : ((10 * weight) + (6.25 * height) - (5 * age) - 161);
         let tdee = Math.round(bmr * activity);
 
         if(document.getElementById('bmr-display')) document.getElementById('bmr-display').innerText = Math.round(bmr).toLocaleString();
@@ -293,14 +287,21 @@ function generateLineGraphSVG(labels, data, strokeColor, isKcal = false) {
         </svg>`;
 }
 
-// กราฟ SVG แสดงแยกประเภท 3 สารอาหาร (โปรตีน / คาร์บ / ไขมัน) เป็นหน่วย kcal
-function generateMultiMacroGraphSVG(labels, pData, cData, fData) {
+// กราฟ SVG แสดงแยกประเภท 3 สารอาหาร พร้อมเส้นประเป้าหมาย 3 สี
+function generateMultiMacroGraphSVG(labels, pData, cData, fData, targetCal = 2000) {
     if (!labels || labels.length === 0) return `<div class="text-center text-slate-400 text-xs py-10 font-light">ไม่มีสถิติสารอาหารบันทึกไว้ครับ 🔍</div>`;
-    const width = 340; const height = 180; const padding = 32;
-    let allVals = [...pData, ...cData, ...fData];
-    let maxVal = Math.max(...allVals, 100); let minVal = 0;
+    const width = 340; const height = 200; const padding = 32;
 
-    const graphWidth = width - (padding * 2); const graphHeight = height - (padding * 2);
+    const targetP = Math.round(targetCal * 0.30);
+    const targetC = Math.round(targetCal * 0.45);
+    const targetF = Math.round(targetCal * 0.25);
+
+    let allVals = [...pData, ...cData, ...fData, targetP, targetC, targetF];
+    let maxVal = Math.max(...allVals, 100); 
+    let minVal = 0;
+
+    const graphWidth = width - (padding * 2); 
+    const graphHeight = height - (padding * 2);
     const stepX = labels.length > 1 ? graphWidth / (labels.length - 1) : 0;
 
     let buildLine = (data, color) => {
@@ -316,6 +317,15 @@ function generateMultiMacroGraphSVG(labels, pData, cData, fData) {
         return `<path d="${pathD}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />${circles}`;
     };
 
+    let buildTargetLine = (tVal, color) => {
+        const ratio = (tVal - minVal) / (maxVal - minVal);
+        const y = height - padding - (ratio * graphHeight);
+        return `
+            <line x1="${padding}" y1="${y}" x2="${width - padding}" y2="${y}" stroke="${color}" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.8" />
+            <text x="${width - padding + 2}" y="${y + 3}" font-size="9" font-weight="bold" fill="${color}" text-anchor="start">${tVal}</text>
+        `;
+    };
+
     let xLabelsHtml = labels.map((lbl, idx) => {
         const x = labels.length === 1 ? width / 2 : padding + (idx * stepX);
         return `<text x="${x}" y="${height - 6}" font-size="10" font-weight="bold" fill="#64748b" text-anchor="middle">${escapeHtml(lbl)}</text>`;
@@ -323,11 +333,16 @@ function generateMultiMacroGraphSVG(labels, pData, cData, fData) {
 
     return `
         <svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" class="overflow-visible">
-            <line x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="3,3" />
-            <line x1="${padding}" y1="${padding}" x2="${width - padding}" y2="${padding}" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="3,3" />
-            ${labels.length > 1 ? buildLine(pData, '#3b82f6') : ''}
-            ${labels.length > 1 ? buildLine(cData, '#f97316') : ''}
-            ${labels.length > 1 ? buildLine(fData, '#eab308') : ''}
+            <line x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" stroke="#e2e8f0" stroke-width="1" />
+            
+            ${buildTargetLine(targetP, '#2563eb')}
+            ${buildTargetLine(targetC, '#ea580c')}
+            ${buildTargetLine(targetF, '#ca8a04')}
+
+            ${buildLine(pData, '#3b82f6')}
+            ${buildLine(cData, '#f97316')}
+            ${buildLine(fData, '#eab308')}
+
             ${xLabelsHtml}
         </svg>`;
 }
@@ -379,9 +394,9 @@ function renderStatsGraph(period) {
             let iso = item.date || new Date().toISOString().split('T')[0];
             if(!dayKGroup[iso]) { dayKGroup[iso] = 0; dayPGroup[iso] = 0; dayCGroup[iso] = 0; dayFGroup[iso] = 0; }
             dayKGroup[iso] += item.cal;
-            dayPGroup[iso] += item.proteinCal || 0;
-            dayCGroup[iso] += item.carbsCal || 0;
-            dayFGroup[iso] += item.fatCal || 0;
+            dayPGroup[iso] += (item.proteinCal !== undefined) ? item.proteinCal : Math.round(item.cal * 0.25);
+            dayCGroup[iso] += (item.carbsCal !== undefined) ? item.carbsCal : Math.round(item.cal * 0.50);
+            dayFGroup[iso] += (item.fatCal !== undefined) ? item.fatCal : Math.round(item.cal * 0.25);
         });
         let sortedKDates = Object.keys(dayKGroup).sort().slice(-5);
         sortedKDates.forEach(d => {
@@ -417,9 +432,9 @@ function renderStatsGraph(period) {
             if(!weekKDayGroup[wKey]) { weekKDayGroup[wKey] = {}; weekPDayGroup[wKey] = {}; weekCDayGroup[wKey] = {}; weekFDayGroup[wKey] = {}; }
             if(!weekKDayGroup[wKey][iso]) { weekKDayGroup[wKey][iso] = 0; weekPDayGroup[wKey][iso] = 0; weekCDayGroup[wKey][iso] = 0; weekFDayGroup[wKey][iso] = 0; }
             weekKDayGroup[wKey][iso] += item.cal;
-            weekPDayGroup[wKey][iso] += item.proteinCal || 0;
-            weekCDayGroup[wKey][iso] += item.carbsCal || 0;
-            weekFDayGroup[wKey][iso] += item.fatCal || 0;
+            weekPDayGroup[wKey][iso] += (item.proteinCal !== undefined) ? item.proteinCal : Math.round(item.cal * 0.25);
+            weekCDayGroup[wKey][iso] += (item.carbsCal !== undefined) ? item.carbsCal : Math.round(item.cal * 0.50);
+            weekFDayGroup[wKey][iso] += (item.fatCal !== undefined) ? item.fatCal : Math.round(item.cal * 0.25);
         });
         let sortedWeeksK = Object.keys(weekKDayGroup).sort().slice(-5);
         sortedWeeksK.forEach(w => {
@@ -455,9 +470,9 @@ function renderStatsGraph(period) {
             if(!monthKDayGroup[mKey]) { monthKDayGroup[mKey] = {}; monthPDayGroup[mKey] = {}; monthCDayGroup[mKey] = {}; monthFDayGroup[mKey] = {}; }
             if(!monthKDayGroup[mKey][iso]) { monthKDayGroup[mKey][iso] = 0; monthPDayGroup[mKey][iso] = 0; monthCDayGroup[mKey][iso] = 0; monthFDayGroup[mKey][iso] = 0; }
             monthKDayGroup[mKey][iso] += item.cal;
-            monthPDayGroup[mKey][iso] += item.proteinCal || 0;
-            monthCDayGroup[mKey][iso] += item.carbsCal || 0;
-            monthFDayGroup[mKey][iso] += item.fatCal || 0;
+            monthPDayGroup[mKey][iso] += (item.proteinCal !== undefined) ? item.proteinCal : Math.round(item.cal * 0.25);
+            monthCDayGroup[mKey][iso] += (item.carbsCal !== undefined) ? item.carbsCal : Math.round(item.cal * 0.50);
+            monthFDayGroup[mKey][iso] += (item.fatCal !== undefined) ? item.fatCal : Math.round(item.cal * 0.25);
         });
         let sortedMonthsK = Object.keys(monthKDayGroup).sort().slice(-5);
         sortedMonthsK.forEach(m => {
@@ -471,9 +486,11 @@ function renderStatsGraph(period) {
         });
     }
 
+    let targetCal = localData.customCalorieTarget || 2000;
+
     weightContainer.innerHTML = generateLineGraphSVG(labelsW, weightData, '#0ea5e9', false);
     kcalContainer.innerHTML = generateLineGraphSVG(labelsK, kcalData, '#f59e0b', true);
-    if(macroContainer) macroContainer.innerHTML = generateMultiMacroGraphSVG(labelsM, pData, cData, fData);
+    if(macroContainer) macroContainer.innerHTML = generateMultiMacroGraphSVG(labelsM, pData, cData, fData, targetCal);
 }
 
 function parseTimeString(timeInput) {
@@ -1007,9 +1024,9 @@ function renderFoods() {
     let total = 0; let totalP = 0; let totalC = 0; let totalF = 0;
     filteredFoods.forEach(item => {
         total += item.cal;
-        totalP += item.proteinCal || 0;
-        totalC += item.carbsCal || 0;
-        totalF += item.fatCal || 0;
+        totalP += (item.proteinCal !== undefined) ? item.proteinCal : Math.round(item.cal * 0.25);
+        totalC += (item.carbsCal !== undefined) ? item.carbsCal : Math.round(item.cal * 0.50);
+        totalF += (item.fatCal !== undefined) ? item.fatCal : Math.round(item.cal * 0.25);
     });
 
     list.innerHTML = filteredFoods.map(food => `<li class="flex justify-between items-center py-3 border-b border-slate-100"><span class="text-slate-800 text-xs font-medium">${escapeHtml(food.name)} <span class="text-xs bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-md ml-1.5">${food.cal} kcal</span></span><button onclick="deleteFood(${food.id})" class="text-rose-500 font-bold px-2 py-1 hover:text-rose-700 text-sm">✕</button></li>`).join('');
@@ -1025,7 +1042,6 @@ function updateCalorieDisplay(total, totalP, totalC, totalF) {
     const totalEl = document.getElementById('total-cal'); 
     if (totalEl) { totalEl.innerText = total; totalEl.className = total > finalTarget ? "text-rose-500 font-black text-base" : "text-emerald-600 font-black text-base"; } 
 
-    // โควตาสารอาหารย่อย (โปรตีน 30% / คาร์บ 45% / ไขมัน 25%)
     let targetP = Math.round(finalTarget * 0.30);
     let targetC = Math.round(finalTarget * 0.45);
     let targetF = Math.round(finalTarget * 0.25);
