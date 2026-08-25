@@ -287,7 +287,6 @@ function generateLineGraphSVG(labels, data, strokeColor, isKcal = false) {
         </svg>`;
 }
 
-// กราฟ SVG แสดงแยกประเภท 3 สารอาหาร พร้อมเส้นประเป้าหมาย 3 สี
 function generateMultiMacroGraphSVG(labels, pData, cData, fData, targetCal = 2000) {
     if (!labels || labels.length === 0) return `<div class="text-center text-slate-400 text-xs py-10 font-light">ไม่มีสถิติสารอาหารบันทึกไว้ครับ 🔍</div>`;
     const width = 340; const height = 200; const padding = 32;
@@ -675,7 +674,8 @@ async function submitData() {
 {
   "type": "weight" หรือ "event",
   "weight": เลขน้ำหนักที่เป็น float (ถ้า type="weight" เช่น 68.5),
-  "detail": "รายละเอียดงานหรือนัดหมายที่ตัดวันที่/เวลาออกแล้ว",
+  "detail": "รายละเอียดงานหรือนัดหมายที่ตัดวันที่/เวลา/สถานที่ออกแล้ว",
+  "location": "สถานที่หรือห้องประชุม (ถ้าไม่ระบุให้เป็น "")",
   "dates": ["YYYY-MM-DD"] (อาร์เรย์ของวันที่ที่มีในข้อความ ถ้าไม่ระบุให้ใช้ "${todayISO}"),
   "time_str": "HH:mm น." (เช่น "09:00 น." หรือ "14:30 น." ถ้าไม่ระบุเวลาให้เป็น "-"),
   "hours": เลขชั่วโมง 0-23 (ถ้าไม่ระบุให้ใช้ 9),
@@ -713,7 +713,8 @@ async function submitData() {
                         localData.brain_dump.push({ 
                             id: Date.now() + idx, 
                             cat: "Calendar", 
-                            detail: aiResult.detail || text, 
+                            detail: aiResult.detail || text,
+                            location: aiResult.location || "",
                             notes: targetDateStrs.length > 1 ? `(นัดหมายต่อเนื่อง ${getThaiDateString(new Date(targetDateStrs[0]))} - ${getThaiDateString(new Date(targetDateStrs[targetDateStrs.length - 1]))})` : "", 
                             time: aiResult.time_str || "-", 
                             iso_date: targetDate.toISOString(), 
@@ -783,6 +784,7 @@ async function submitData() {
                 id: Date.now() + idx, 
                 cat: "Calendar", 
                 detail: cleanDetail || text, 
+                location: "",
                 notes: targetDates.length > 1 ? `(นัดหมายต่อเนื่อง ${getThaiDateString(targetDates[0])} - ${getThaiDateString(targetDates[targetDates.length - 1])})` : "", 
                 time: time_str, 
                 iso_date: targetDate.toISOString(), 
@@ -812,6 +814,7 @@ function openEditModal(id) {
     let item = localData.brain_dump.find(i => i.id === id); if (!item) return;
     document.getElementById('edit-item-id').value = item.id;
     document.getElementById('edit-detail').value = item.detail;
+    document.getElementById('edit-location').value = item.location || '';
     document.getElementById('edit-notes').value = item.notes || ''; 
     document.getElementById('edit-time').value = item.time === '-' ? '' : item.time.replace(" น.", "");
     document.getElementById('edit-mile-start').value = item.mile_start || '';
@@ -831,6 +834,7 @@ function saveEditedAppointment() {
     let id = parseInt(document.getElementById('edit-item-id').value);
     let item = localData.brain_dump.find(i => i.id === id); if (!item) return;
     let detailInput = document.getElementById('edit-detail').value.trim();
+    let locationInput = document.getElementById('edit-location').value.trim();
     let notesInput = document.getElementById('edit-notes').value.trim(); 
     let dateInput = document.getElementById('edit-date').value;
     let timeInput = document.getElementById('edit-time').value.trim();
@@ -847,6 +851,7 @@ function saveEditedAppointment() {
     } else { targetDate.setHours(9, 0, 0, 0); }
 
     item.detail = detailInput; 
+    item.location = locationInput;
     item.notes = notesInput; 
     item.iso_date = targetDate.toISOString(); 
     item.appointment_date_str = getThaiDateString(targetDate);
@@ -864,7 +869,8 @@ function getGoogleCalendarUrl(item) {
     let endD = new Date(startD.getTime() + 60*60*1000); 
     let formatT = (d) => d.toISOString().replace(/[-:]/g, "").split('.')[0] + "Z"; 
     let detailsParam = item.notes ? `&details=${encodeURIComponent(item.notes)}` : '';
-    return `${baseUrl}&text=${encodeURIComponent(item.detail)}&dates=${formatT(startD)}/${formatT(endD)}${detailsParam}`; 
+    let locationParam = item.location ? `&location=${encodeURIComponent(item.location)}` : '';
+    return `${baseUrl}&text=${encodeURIComponent(item.detail)}&dates=${formatT(startD)}/${formatT(endD)}${detailsParam}${locationParam}`; 
 }
 
 function getGoogleMapsUrl(locationName) { return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(locationName)}`; }
@@ -894,10 +900,17 @@ function displayData() {
     activePlans.forEach(item => {
         let mileBadgeHtml = ''; if (item.distance && item.distance > 0) { mileBadgeHtml = `<p class="inline-block text-xs bg-slate-100 text-slate-700 font-semibold px-2.5 py-1 rounded-lg mt-1 border border-slate-200"><i class="fa-solid fa-road mr-1 text-emerald-600"></i>ไมล์คัดกรอง: ${item.mile_start} -> ${item.mile_end} (${item.distance} กม.)</p>`; }
         
+        let locationHtml = '';
+        if (item.location) {
+            locationHtml = `<p class="text-xs text-emerald-700 font-semibold mt-1 flex items-center gap-1"><i class="fa-solid fa-location-dot text-rose-500"></i> ${escapeHtml(item.location)}</p>`;
+        }
+
         let notesHtml = '';
         if (item.notes) {
             notesHtml = `<div class="mt-2.5 bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 text-xs text-slate-600 whitespace-pre-line leading-relaxed"><i class="fa-regular fa-note-sticky text-amber-500 mr-1.5"></i>${escapeHtml(item.notes)}</div>`;
         }
+
+        let navTarget = item.location || item.detail;
 
         container.innerHTML += `
             <div class="bg-white border border-slate-200/80 p-4 rounded-2xl shadow-sm flex flex-col gap-2 relative hover:border-slate-300 transition-all">
@@ -909,11 +922,12 @@ function displayData() {
                     <div class="flex-1 pr-12">
                         <p class="font-bold text-slate-900 text-sm leading-snug">${escapeHtml(item.detail)}</p>
                         <p class="text-xs text-slate-500 mt-1 flex items-center gap-1.5"><span>📅 ${escapeHtml(item.appointment_date_str)}</span> <span>•</span> <span>⏰ ${item.time !== '-' ? escapeHtml(item.time) : 'ไม่ระบุเวลา'}</span></p>
+                        ${locationHtml}
                         ${notesHtml}
                         ${mileBadgeHtml}
                         <div class="mt-3.5 flex gap-2 flex-wrap">
                             <a href="${getGoogleCalendarUrl(item)}" target="_blank" class="bg-slate-900 hover:bg-slate-800 text-white px-3 py-1.5 rounded-xl text-xs font-semibold tracking-wide transition-colors inline-flex items-center gap-1"><i class="fa-solid fa-calendar-plus text-emerald-400"></i>ลงปฏิทิน</a>
-                            <a href="${getGoogleMapsUrl(item.detail)}" target="_blank" class="bg-slate-100 text-slate-800 border border-slate-200 hover:bg-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors inline-flex items-center gap-1"><i class="fa-solid fa-location-dot text-emerald-600"></i>นำทาง</a>
+                            <a href="${getGoogleMapsUrl(navTarget)}" target="_blank" class="bg-slate-100 text-slate-800 border border-slate-200 hover:bg-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors inline-flex items-center gap-1"><i class="fa-solid fa-location-dot text-emerald-600"></i>นำทาง</a>
                         </div>
                     </div>
                 </div>
@@ -1178,8 +1192,9 @@ function showEventOfDay(day) {
     
     previewContainer.innerHTML = dayEvents.map(item => { 
         let mileBadgeHtml = ''; if (item.distance && item.distance > 0) { mileBadgeHtml = `<p class="text-xs text-emerald-700 font-bold mt-1"><i class="fa-solid fa-road mr-1"></i>ระยะรวม: ${item.distance} กม.</p>`; }
+        let locationHtml = item.location ? `<p class="text-xs text-emerald-700 font-semibold mt-1"><i class="fa-solid fa-location-dot text-rose-500 mr-1"></i>${escapeHtml(item.location)}</p>` : '';
         let notesHtml = item.notes ? `<p class="text-xs text-slate-600 mt-1.5 bg-white p-2 rounded-lg border border-slate-200/80 whitespace-pre-line leading-relaxed"><i class="fa-regular fa-note-sticky text-amber-500 mr-1"></i>${escapeHtml(item.notes)}</p>` : '';
-        return `<div class="bg-slate-50 border border-slate-200/80 p-3.5 rounded-xl flex items-start justify-between shadow-xs"><div><p class="font-bold text-slate-900 text-sm leading-snug">${escapeHtml(item.detail)}</p><p class="text-xs text-slate-500 mt-1"><i class="fa-regular fa-clock mr-1"></i>เวลา: ${item.time !== '-' ? escapeHtml(item.time) : 'ไม่ระบุเวลา'}</p>${notesHtml}${mileBadgeHtml}</div><div class="flex gap-2.5 items-center pl-2 pt-0.5"><button onclick="openEditModal(${item.id})" class="text-slate-400 hover:text-emerald-600 text-sm transition-colors p-1"><i class="fa-solid fa-pen"></i></button><button onclick="deletePlan(${item.id})" class="text-slate-300 hover:text-rose-500 text-sm transition-colors p-1"><i class="fa-solid fa-trash"></i></button></div></div>` 
+        return `<div class="bg-slate-50 border border-slate-200/80 p-3.5 rounded-xl flex items-start justify-between shadow-xs"><div><p class="font-bold text-slate-900 text-sm leading-snug">${escapeHtml(item.detail)}</p><p class="text-xs text-slate-500 mt-1"><i class="fa-regular fa-clock mr-1"></i>เวลา: ${item.time !== '-' ? escapeHtml(item.time) : 'ไม่ระบุเวลา'}</p>${locationHtml}${notesHtml}${mileBadgeHtml}</div><div class="flex gap-2.5 items-center pl-2 pt-0.5"><button onclick="openEditModal(${item.id})" class="text-slate-400 hover:text-emerald-600 text-sm transition-colors p-1"><i class="fa-solid fa-pen"></i></button><button onclick="deletePlan(${item.id})" class="text-slate-300 hover:text-rose-500 text-sm transition-colors p-1"><i class="fa-solid fa-trash"></i></button></div></div>` 
     }).join('');
 }
 

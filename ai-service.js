@@ -30,6 +30,7 @@ async function handleImageScheduleEstimate(event) {
 [
   {
     "detail": "ชื่อนัดหมาย/วาระงาน",
+    "location": "สถานที่ หรือ ห้องประชุม (ถ้ามี)",
     "iso_date": "YYYY-MM-DD",
     "time_str": "HH:mm น.",
     "hours": 9,
@@ -81,6 +82,7 @@ async function handleImageScheduleEstimate(event) {
                             id: Date.now() + idx + Math.random(),
                             cat: "Calendar",
                             detail: evt.detail || "นัดหมายจากภาพ",
+                            location: evt.location || "",
                             notes: "บันทึกอัตโนมัติจากการสแกนรูปภาพตารางงานด้วย Gemini AI",
                             time: evt.time_str || "-",
                             iso_date: targetDate.toISOString(),
@@ -150,6 +152,7 @@ function importIcsCalendar(event) {
                         id: Date.now() + Math.random(),
                         cat: "Calendar",
                         detail: evt.summary || "นัดหมายจาก MS Teams",
+                        location: evt.location || "",
                         notes: evt.description || "",
                         time: timeStr,
                         iso_date: startDate.toISOString(),
