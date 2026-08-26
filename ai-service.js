@@ -79,7 +79,7 @@ async function handleImageScheduleEstimate(event) {
                         let sortTime = ((evt.hours || 9) * 60) + (evt.minutes || 0);
 
                         localData.brain_dump.push({
-                            id: Date.now() + idx + Math.random(),
+                            id: Date.now() + idx + Math.floor(Math.random() * 1000),
                             cat: "Calendar",
                             detail: evt.detail || "นัดหมายจากภาพ",
                             location: evt.location || "",
@@ -149,7 +149,7 @@ function importIcsCalendar(event) {
 
                 if (!isDuplicate) {
                     localData.brain_dump.push({
-                        id: Date.now() + Math.random(),
+                        id: Date.now() + Math.floor(Math.random() * 1000),
                         cat: "Calendar",
                         detail: evt.summary || "นัดหมายจาก MS Teams",
                         location: evt.location || "",

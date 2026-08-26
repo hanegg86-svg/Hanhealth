@@ -135,7 +135,7 @@ function openWeightEditModal(id) {
 function closeWeightEditModal() { document.getElementById('weight-edit-modal').classList.add('hidden'); }
 
 function saveEditedWeight() {
-    let id = parseInt(document.getElementById('edit-weight-id').value);
+    let id = parseFloat(document.getElementById('edit-weight-id').value);
     let item = localData.weightLog.find(i => i.id === id); if (!item) return;
 
     let weightVal = document.getElementById('edit-weight-value').value.trim();
@@ -831,7 +831,7 @@ function openEditModal(id) {
 function closeEditModal() { document.getElementById('edit-modal').classList.add('hidden'); }
 
 function saveEditedAppointment() {
-    let id = parseInt(document.getElementById('edit-item-id').value);
+    let id = parseFloat(document.getElementById('edit-item-id').value);
     let item = localData.brain_dump.find(i => i.id === id); if (!item) return;
     let detailInput = document.getElementById('edit-detail').value.trim();
     let locationInput = document.getElementById('edit-location').value.trim();
