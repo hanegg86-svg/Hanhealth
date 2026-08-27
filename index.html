@@ -65,9 +65,14 @@
                         </label>
                         <div class="flex gap-1.5 flex-wrap">
                             <button onclick="document.getElementById('schedule-camera-input').click()" title="ถ่ายรูปสแกนตารางงาน" class="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs px-2.5 py-1.5 rounded-xl font-semibold transition-all active:scale-95 flex items-center gap-1">
-                                <i class="fa-solid fa-camera text-amber-600"></i> สแกนรูป
+                                <i class="fa-solid fa-camera text-amber-600"></i> ถ่ายรูป
                             </button>
-                            <input type="file" id="schedule-camera-input" accept="image/*" class="hidden" onchange="handleImageScheduleEstimate(event)">
+                            <input type="file" id="schedule-camera-input" accept="image/*" capture="environment" class="hidden" onchange="handleImageScheduleEstimate(event)">
+
+                            <button onclick="document.getElementById('schedule-gallery-input').click()" title="เลือกรูปจากอัลบั้ม" class="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs px-2.5 py-1.5 rounded-xl font-semibold transition-all active:scale-95 flex items-center gap-1">
+                                <i class="fa-solid fa-image text-amber-600"></i> เลือกรูป
+                            </button>
+                            <input type="file" id="schedule-gallery-input" accept="image/*" class="hidden" onchange="handleImageScheduleEstimate(event)">
 
                             <button onclick="document.getElementById('ics-file-input').click()" class="bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 text-xs px-2.5 py-1.5 rounded-xl font-semibold transition-all active:scale-95 flex items-center gap-1">
                                 <i class="fa-solid fa-calendar-arrow-down text-sky-600"></i> .ics
