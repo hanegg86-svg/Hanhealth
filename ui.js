@@ -239,51 +239,54 @@ function applyTdeeAsTarget() {
     alert(`🎯 ตั้งเป้าหมายแคลอรีตาม TDEE แนะนำ (${tdeeVal.toLocaleString()} kcal) เรียบร้อยครับ!`);
 }
 
-function generateLineGraphSVG(labels, data, strokeColor, isKcal = false) {
+function generateLineGraphSVG(labels, data, strokeColor, isKcal = false, targetVal = null) {
     if (!data || data.length === 0) return `<div class="text-center text-slate-400 text-xs py-10 font-light">ไม่มีสถิติถูกบันทึกไว้ประมวลผลในช่วงเวลานี้ครับ 🔍</div>`;
-    const width = 340; const height = 160; const padding = 32;
-    let maxVal = Math.max(...data); let minVal = Math.min(...data);
+    const width = 340; const height = 180; const padding = 32;
     
-    let sum = data.reduce((s,v) => s+v, 0);
+    let target = targetVal || (localData.customCalorieTarget || 2000);
+    let maxVal = Math.max(...data, isKcal ? target : 0);
+    let minVal = 0;
+
+    let sum = data.reduce((s, v) => s + v, 0);
     let avgVal = parseFloat((sum / data.length).toFixed(1));
 
-    if (maxVal === minVal) { maxVal += isKcal ? 500 : 5; minVal = Math.max(0, minVal - (isKcal ? 500 : 5)); }
-    if(avgVal > maxVal) maxVal = avgVal + (isKcal ? 100 : 1);
-    if(avgVal < minVal) minVal = Math.max(0, avgVal - (isKcal ? 100 : 1));
+    if (maxVal === 0) maxVal = isKcal ? target : 100;
+    maxVal = maxVal * 1.18;
 
-    const graphWidth = width - (padding * 2); const graphHeight = height - (padding * 2);
-    const stepX = data.length > 1 ? graphWidth / (data.length - 1) : 0;
-    
-    let points = []; let pointsData = [];
-    data.forEach((val, index) => {
-        const x = data.length === 1 ? width / 2 : padding + (index * stepX);
+    const graphWidth = width - (padding * 2); 
+    const graphHeight = height - (padding * 2);
+    const slotWidth = data.length > 0 ? graphWidth / data.length : graphWidth;
+    const barWidth = Math.min(slotWidth * 0.55, 22);
+
+    let barsHtml = data.map((val, index) => {
+        const x = padding + (index * slotWidth) + (slotWidth - barWidth) / 2;
         const ratio = (val - minVal) / (maxVal - minVal);
-        const y = height - padding - (ratio * graphHeight);
-        points.push(`${x},${y}`); pointsData.push({x, y, val, label: labels[index]});
-    });
-    
-    const avgRatio = (avgVal - minVal) / (maxVal - minVal);
-    const avgY = height - padding - (avgRatio * graphHeight);
+        const barH = ratio * graphHeight;
+        const y = height - padding - barH;
+        
+        const isExceed = isKcal && val > target;
+        const barFill = isExceed ? '#f43f5e' : strokeColor;
 
-    let pathD = `M ${points.join(' L ')}`;
-    
-    let textLabelsHtml = pointsData.map((p) => `
-        <text x="${p.x}" y="${height - 6}" font-size="10" font-weight="bold" fill="#64748b" text-anchor="middle">${escapeHtml(p.label)}</text>
-        <text x="${p.x}" y="${p.y - 10}" font-size="11" font-weight="800" fill="${strokeColor}" text-anchor="middle">${isKcal ? p.val.toLocaleString() : p.val}</text>
-    `).join('');
-    
-    let circlesHtml = pointsData.map(p => `<circle cx="${p.x}" cy="${p.y}" r="4.5" fill="#ffffff" stroke="${strokeColor}" stroke-width="3" />`).join('');
+        return `
+            <rect x="${x}" y="${y}" width="${barWidth}" height="${Math.max(barH, 2)}" rx="4" fill="${barFill}" opacity="0.9" />
+            <text x="${x + barWidth/2}" y="${y - 6}" font-size="10" font-weight="bold" fill="${barFill}" text-anchor="middle">${isKcal ? val.toLocaleString() : val}</text>
+            <text x="${x + barWidth/2}" y="${height - 8}" font-size="10" font-weight="bold" fill="#64748b" text-anchor="middle">${escapeHtml(labels[index])}</text>
+        `;
+    }).join('');
+
+    let lineYVal = isKcal ? target : avgVal;
+    const lineRatio = (lineYVal - minVal) / (maxVal - minVal);
+    const lineY = height - padding - (lineRatio * graphHeight);
+    const lineLabel = isKcal ? `เป้าหมาย ${target.toLocaleString()} kcal` : `เฉลี่ย ${avgVal} kg`;
 
     return `
         <svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" class="overflow-visible">
-            <line x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="3,3" />
-            <line x1="${padding}" y1="${padding}" x2="${width - padding}" y2="${padding}" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="3,3" />
+            <line x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" stroke="#e2e8f0" stroke-width="1" />
             
-            <line x1="${padding}" y1="${avgY}" x2="${width - padding}" y2="${avgY}" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.85"/>
-            <text x="${width - padding + 4}" y="${avgY + 3}" font-size="10" font-weight="bold" fill="#ef4444" text-anchor="start">${isKcal ? avgVal.toLocaleString() : avgVal}</text>
+            <line x1="${padding}" y1="${lineY}" x2="${width - padding}" y2="${lineY}" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,4" opacity="0.85"/>
+            <text x="${width - padding + 4}" y="${lineY + 3}" font-size="9" font-weight="bold" fill="#ef4444" text-anchor="start">${lineLabel}</text>
 
-            ${data.length > 1 ? `<path d="${pathD}" fill="none" stroke="${strokeColor}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />` : ''}
-            ${circlesHtml} ${textLabelsHtml}
+            ${barsHtml}
         </svg>`;
 }
 
@@ -296,39 +299,48 @@ function generateMultiMacroGraphSVG(labels, pData, cData, fData, targetCal = 200
     const targetF = Math.round(targetCal * 0.25);
 
     let allVals = [...pData, ...cData, ...fData, targetP, targetC, targetF];
-    let maxVal = Math.max(...allVals, 100); 
+    let maxVal = Math.max(...allVals, 100) * 1.18; 
     let minVal = 0;
 
     const graphWidth = width - (padding * 2); 
     const graphHeight = height - (padding * 2);
-    const stepX = labels.length > 1 ? graphWidth / (labels.length - 1) : 0;
+    const slotWidth = labels.length > 0 ? graphWidth / labels.length : graphWidth;
+    const subBarWidth = Math.min((slotWidth - 6) / 3, 10);
 
-    let buildLine = (data, color) => {
-        let points = [];
-        data.forEach((val, idx) => {
-            const x = labels.length === 1 ? width / 2 : padding + (idx * stepX);
-            const ratio = (val - minVal) / (maxVal - minVal);
-            const y = height - padding - (ratio * graphHeight);
-            points.push({x, y, val});
-        });
-        let pathD = `M ${points.map(p => `${p.x},${p.y}`).join(' L ')}`;
-        let circles = points.map(p => `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="#ffffff" stroke="${color}" stroke-width="2.5" />`).join('');
-        return `<path d="${pathD}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />${circles}`;
-    };
+    let barsHtml = labels.map((lbl, idx) => {
+        const groupX = padding + (idx * slotWidth) + (slotWidth - (subBarWidth * 3 + 2)) / 2;
+        
+        const pVal = pData[idx] || 0;
+        const pH = (pVal / maxVal) * graphHeight;
+        const pY = height - padding - pH;
+        const pX = groupX;
+
+        const cVal = cData[idx] || 0;
+        const cH = (cVal / maxVal) * graphHeight;
+        const cY = height - padding - cH;
+        const cX = groupX + subBarWidth + 1;
+
+        const fVal = fData[idx] || 0;
+        const fH = (fVal / maxVal) * graphHeight;
+        const fY = height - padding - fH;
+        const fX = groupX + (subBarWidth + 1) * 2;
+
+        return `
+            <rect x="${pX}" y="${pY}" width="${subBarWidth}" height="${Math.max(pH, 2)}" rx="2" fill="#3b82f6" />
+            <rect x="${cX}" y="${cY}" width="${subBarWidth}" height="${Math.max(cH, 2)}" rx="2" fill="#f97316" />
+            <rect x="${fX}" y="${fY}" width="${subBarWidth}" height="${Math.max(fH, 2)}" rx="2" fill="#eab308" />
+            <text x="${groupX + (subBarWidth * 1.5 + 1)}" y="${height - 8}" font-size="10" font-weight="bold" fill="#64748b" text-anchor="middle">${escapeHtml(lbl)}</text>
+        `;
+    }).join('');
 
     let buildTargetLine = (tVal, color) => {
         const ratio = (tVal - minVal) / (maxVal - minVal);
         const y = height - padding - (ratio * graphHeight);
         return `
-            <line x1="${padding}" y1="${y}" x2="${width - padding}" y2="${y}" stroke="${color}" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.8" />
+            <line x1="${padding}" y1="${y}" x2="${width - padding}" y2="${y}" stroke="${color}" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.85" />
             <text x="${width - padding + 2}" y="${y + 3}" font-size="9" font-weight="bold" fill="${color}" text-anchor="start">${tVal}</text>
         `;
     };
-
-    let xLabelsHtml = labels.map((lbl, idx) => {
-        const x = labels.length === 1 ? width / 2 : padding + (idx * stepX);
-        return `<text x="${x}" y="${height - 6}" font-size="10" font-weight="bold" fill="#64748b" text-anchor="middle">${escapeHtml(lbl)}</text>`;
-    }).join('');
 
     return `
         <svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" class="overflow-visible">
@@ -338,11 +350,7 @@ function generateMultiMacroGraphSVG(labels, pData, cData, fData, targetCal = 200
             ${buildTargetLine(targetC, '#ea580c')}
             ${buildTargetLine(targetF, '#ca8a04')}
 
-            ${buildLine(pData, '#3b82f6')}
-            ${buildLine(cData, '#f97316')}
-            ${buildLine(fData, '#eab308')}
-
-            ${xLabelsHtml}
+            ${barsHtml}
         </svg>`;
 }
 
@@ -488,7 +496,7 @@ function renderStatsGraph(period) {
     let targetCal = localData.customCalorieTarget || 2000;
 
     weightContainer.innerHTML = generateLineGraphSVG(labelsW, weightData, '#0ea5e9', false);
-    kcalContainer.innerHTML = generateLineGraphSVG(labelsK, kcalData, '#f59e0b', true);
+    kcalContainer.innerHTML = generateLineGraphSVG(labelsK, kcalData, '#f59e0b', true, targetCal);
     if(macroContainer) macroContainer.innerHTML = generateMultiMacroGraphSVG(labelsM, pData, cData, fData, targetCal);
 }
 
