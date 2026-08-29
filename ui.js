@@ -242,7 +242,56 @@ function applyTdeeAsTarget() {
 function generateLineGraphSVG(labels, data, strokeColor, isKcal = false, targetVal = null) {
     if (!data || data.length === 0) return `<div class="text-center text-slate-400 text-xs py-10 font-light">ไม่มีสถิติถูกบันทึกไว้ประมวลผลในช่วงเวลานี้ครับ 🔍</div>`;
     const width = 340; const height = 180; const padding = 32;
-    
+
+    // 📈 กรณีเป็นกราฟน้ำหนัก (!isKcal): แสดงผลเป็นกราฟเส้น (Line Chart) พร้อมปรับสเกลแกน Y ให้เห็นความต่างชัดเจน
+    if (!isKcal) {
+        let minData = Math.min(...data);
+        let maxData = Math.max(...data);
+        let sum = data.reduce((s, v) => s + v, 0);
+        let avgVal = parseFloat((sum / data.length).toFixed(1));
+
+        // ปรับขอบเขตแกน Y (Min-Max) ให้กระชับเพื่อขยายแนวโน้มการเปลี่ยนแปลง
+        let minVal = Math.floor(Math.min(minData, avgVal) - 1);
+        if (minVal < 0) minVal = 0;
+        let maxVal = Math.ceil(Math.max(maxData, avgVal) + 1);
+        if (maxVal === minVal) maxVal = minVal + 2;
+
+        const graphWidth = width - (padding * 2);
+        const graphHeight = height - (padding * 2);
+
+        let points = data.map((val, index) => {
+            let x = data.length === 1 ? padding + graphWidth / 2 : padding + (index * (graphWidth / (data.length - 1)));
+            let ratio = (val - minVal) / (maxVal - minVal);
+            let y = height - padding - (ratio * graphHeight);
+            return { x, y, val, label: labels[index] };
+        });
+
+        let pointsString = points.map(p => `${p.x},${p.y}`).join(' ');
+
+        let dotsAndLabelsHtml = points.map(p => `
+            <circle cx="${p.x}" cy="${p.y}" r="4.5" fill="#ffffff" stroke="${strokeColor}" stroke-width="2.5" />
+            <text x="${p.x}" y="${p.y - 9}" font-size="10" font-weight="bold" fill="${strokeColor}" text-anchor="middle">${p.val}</text>
+            <text x="${p.x}" y="${height - 8}" font-size="10" font-weight="bold" fill="#64748b" text-anchor="middle">${escapeHtml(p.label)}</text>
+        `).join('');
+
+        let lineYVal = avgVal;
+        const lineRatio = (lineYVal - minVal) / (maxVal - minVal);
+        const lineY = height - padding - (lineRatio * graphHeight);
+        const lineLabel = `เฉลี่ย ${avgVal} kg`;
+
+        return `
+            <svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" class="overflow-visible">
+                <line x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" stroke="#e2e8f0" stroke-width="1" />
+                
+                <line x1="${padding}" y1="${lineY}" x2="${width - padding}" y2="${lineY}" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,4" opacity="0.85"/>
+                <text x="${width - padding + 4}" y="${lineY + 3}" font-size="9" font-weight="bold" fill="#ef4444" text-anchor="start">${lineLabel}</text>
+
+                <polyline fill="none" stroke="${strokeColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="${pointsString}" />
+                ${dotsAndLabelsHtml}
+            </svg>`;
+    }
+
+    // 📊 กรณีเป็นกราฟแคลอรี (isKcal): คงรูปกราฟแท่ง (Bar Chart) ไว้เช่นเดิม
     let target = targetVal || (localData.customCalorieTarget || 2000);
     let maxVal = Math.max(...data, isKcal ? target : 0);
     let minVal = 0;
