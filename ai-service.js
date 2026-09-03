@@ -207,7 +207,7 @@ async function fetchCalorieFromGemini(foodName, base64Image = null, mimeType = n
     let partsPayload = [];
     
     if (base64Image) {
-        partsPayload.push({ inline_data: { mime_type: mimeType, data: base64Data } });
+        partsPayload.push({ inline_data: { mime_type: mimeType, data: base64Image } });
         partsPayload.push({ text: `วิเคราะห์รูปอาหารนี้ ตอบกลับในรูปแบบ JSON สั้นๆ เท่านั้น ตัวอย่าง: {"name": "ข้าวมันไก่", "cal": 596, "protein_cal": 179, "carbs_cal": 268, "fat_cal": 149}` });
     } else {
         partsPayload.push({ text: `ประเมินโภชนาการของเมนูอาหารต่อไปนี้: "${foodName}" ตอบกลับในรูปแบบ JSON เท่านั้น ตัวอย่าง: {"name": "${foodName}", "cal": 550, "protein_cal": 165, "carbs_cal": 248, "fat_cal": 137}` });
@@ -275,38 +275,43 @@ async function handleImageCalorieEstimate(event) {
         previewBox.classList.remove('hidden');
         statusText.innerText = "🤖 กำลังวิเคราะห์รูปภาพอาหารด้วย AI...";
 
-        const base64Data = e.target.result.split(',')[1];
-        const mimeType = file.type || "image/jpeg";
+        try {
+            const base64Data = e.target.result.split(',')[1];
+            const mimeType = file.type || "image/jpeg";
 
-        const result = await fetchCalorieFromGemini(null, base64Data, mimeType);
+            const result = await fetchCalorieFromGemini(null, base64Data, mimeType);
 
-        if (result && result.cal) {
-            if(result.name) foodInput.value = result.name;
-            calInput.value = result.cal;
-            
-            let pCal = result.protein_cal || Math.round(result.cal * 0.30);
-            let cCal = result.carbs_cal || Math.round(result.cal * 0.45);
-            let fCal = result.fat_cal || Math.round(result.cal * 0.25);
+            if (result && result.cal) {
+                if(result.name) foodInput.value = result.name;
+                calInput.value = result.cal;
+                
+                let pCal = result.protein_cal || Math.round(result.cal * 0.30);
+                let cCal = result.carbs_cal || Math.round(result.cal * 0.45);
+                let fCal = result.fat_cal || Math.round(result.cal * 0.25);
 
-            if(document.getElementById('protein-cal-input')) document.getElementById('protein-cal-input').value = pCal;
-            if(document.getElementById('carbs-cal-input')) document.getElementById('carbs-cal-input').value = cCal;
-            if(document.getElementById('fat-cal-input')) document.getElementById('fat-cal-input').value = fCal;
+                if(document.getElementById('protein-cal-input')) document.getElementById('protein-cal-input').value = pCal;
+                if(document.getElementById('carbs-cal-input')) document.getElementById('carbs-cal-input').value = cCal;
+                if(document.getElementById('fat-cal-input')) document.getElementById('fat-cal-input').value = fCal;
 
-            statusText.innerText = `✨ วิเคราะห์เสร็จสิ้น: ${escapeHtml(result.name || 'จานนี้')} (~${result.cal} kcal)`;
-            confetti({ particleCount: 15, spread: 30, colors: ['#059669'] });
-            
-            if (result.name && result.cal) {
-                if (!localData.customMenu) localData.customMenu = {};
-                localData.customMenu[result.name] = {
-                    cal: result.cal,
-                    proteinCal: pCal,
-                    carbsCal: cCal,
-                    fatCal: fCal
-                };
-                saveData();
+                statusText.innerText = `✨ วิเคราะห์เสร็จสิ้น: ${escapeHtml(result.name || 'จานนี้')} (~${result.cal} kcal)`;
+                confetti({ particleCount: 15, spread: 30, colors: ['#059669'] });
+                
+                if (result.name && result.cal) {
+                    if (!localData.customMenu) localData.customMenu = {};
+                    localData.customMenu[result.name] = {
+                        cal: result.cal,
+                        proteinCal: pCal,
+                        carbsCal: cCal,
+                        fatCal: fCal
+                    };
+                    saveData();
+                }
+            } else {
+                statusText.innerText = "❌ ไม่สามารถประเมินแคลอรีจากภาพได้ โปรดกรอกเองครับ";
             }
-        } else {
-            statusText.innerText = "❌ ไม่สามารถประเมินแคลอรีจากภาพได้ โปรดกรอกเองครับ";
+        } catch (err) {
+            console.error("Image Analysis Error:", err);
+            statusText.innerText = "❌ เกิดข้อผิดพลาดในการวิเคราะห์ภาพ โปรดลองใหม่อีกครั้งครับ";
         }
     };
     reader.readAsDataURL(file);
