@@ -11,13 +11,6 @@ function getFullMenuDb() {
     return { ...defaultMenuDb, ...(localData.customMenu || {}) }; 
 }
 
-function getLocalDateISOString(d = new Date()) {
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-}
-
 function switchMainTab(tabId) {
     ['hq', 'calendar', 'health', 'diet', 'graph'].forEach(id => {
         document.getElementById(id + '-section').classList.add('hidden');
@@ -34,7 +27,9 @@ function switchMainTab(tabId) {
         initCalorieModeUI(); setWeightDefaultValues(); renderWeightHistory();
     }
     if (tabId === 'diet') {
-        document.getElementById('diet-log-date').value = getLocalDateISOString();
+        let now = new Date();
+        let localISODate = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+        document.getElementById('diet-log-date').value = localISODate;
         calculateHealth();
     }
     if (tabId === 'graph') renderStatsGraph('day');
@@ -60,7 +55,9 @@ function setHqFilter(filterType) {
 }
 
 function setWeightDefaultValues() {
-    document.getElementById('weight-log-date').value = getLocalDateISOString();
+    let now = new Date();
+    let localISODate = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+    document.getElementById('weight-log-date').value = localISODate;
 
     if (localData.weightLog && localData.weightLog.length > 0) {
         let sortedLogs = [...localData.weightLog].sort((a,b) => b.timestamp - a.timestamp);
@@ -83,8 +80,7 @@ function saveCurrentWeight() {
     if(!wInput || isNaN(wInput)) return alert("กรุณาระบุตัวเลขน้ำหนักที่ถูกต้องครับ");
     if(!dateInput) return alert("กรุณาเลือกวันที่บันทึกน้ำหนักครับ");
 
-    let parts = dateInput.split('-');
-    let targetDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    let targetDate = new Date(dateInput);
     let thaiDateStr = getThaiDateString(targetDate);
     
     localData.weightLog.push({ 
@@ -130,7 +126,7 @@ function openWeightEditModal(id) {
     let iso = item.iso_date;
     if(!iso) {
         let d = new Date(item.timestamp);
-        iso = getLocalDateISOString(d);
+        iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     }
     document.getElementById('edit-weight-date').value = iso;
     document.getElementById('weight-edit-modal').classList.remove('hidden');
@@ -147,8 +143,7 @@ function saveEditedWeight() {
 
     if(!weightVal || isNaN(weightVal) || !dateVal) return alert("กรุณากรอกข้อมูลให้ถูกต้องครบถ้วนครับ");
 
-    let parts = dateVal.split('-');
-    let targetDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    let targetDate = new Date(dateVal);
     item.weight = parseFloat(weightVal);
     item.iso_date = dateVal;
     item.date = getThaiDateString(targetDate);
@@ -190,6 +185,11 @@ function saveCustomCalorieTarget(val) {
 
 function calculateHealth() {
     let weight = parseFloat(document.getElementById('weight-input').value) || 85;
+    
+    if(localData.weightLog && localData.weightLog.length > 0) {
+        let sorted = [...localData.weightLog].sort((a,b) => b.timestamp - a.timestamp);
+        weight = sorted[0].weight;
+    }
 
     const height = parseFloat(document.getElementById('height-input').value) || 176;
     const gender = document.getElementById('user-gender') ? document.getElementById('user-gender').value : 'male';
@@ -243,12 +243,14 @@ function generateLineGraphSVG(labels, data, strokeColor, isKcal = false, targetV
     if (!data || data.length === 0) return `<div class="text-center text-slate-400 text-xs py-10 font-light">ไม่มีสถิติถูกบันทึกไว้ประมวลผลในช่วงเวลานี้ครับ 🔍</div>`;
     const width = 340; const height = 180; const padding = 32;
 
+    // 📈 กรณีเป็นกราฟน้ำหนัก (!isKcal): แสดงผลเป็นกราฟเส้น (Line Chart) พร้อมปรับสเกลแกน Y ให้เห็นความต่างชัดเจน
     if (!isKcal) {
         let minData = Math.min(...data);
         let maxData = Math.max(...data);
         let sum = data.reduce((s, v) => s + v, 0);
         let avgVal = parseFloat((sum / data.length).toFixed(1));
 
+        // ปรับขอบเขตแกน Y (Min-Max) ให้กระชับเพื่อขยายแนวโน้มการเปลี่ยนแปลง
         let minVal = Math.floor(Math.min(minData, avgVal) - 1);
         if (minVal < 0) minVal = 0;
         let maxVal = Math.ceil(Math.max(maxData, avgVal) + 1);
@@ -289,6 +291,7 @@ function generateLineGraphSVG(labels, data, strokeColor, isKcal = false, targetV
             </svg>`;
     }
 
+    // 📊 กรณีเป็นกราฟแคลอรี (isKcal): คงรูปกราฟแท่ง (Bar Chart) ไว้เช่นเดิม
     let target = targetVal || (localData.customCalorieTarget || 2000);
     let maxVal = Math.max(...data, isKcal ? target : 0);
     let minVal = 0;
@@ -401,8 +404,7 @@ function generateMultiMacroGraphSVG(labels, pData, cData, fData, targetCal = 200
 }
 
 function getWeekNumber(dateStr) {
-    let parts = dateStr.split('-');
-    let d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    let d = new Date(dateStr);
     let oneJan = new Date(d.getFullYear(), 0, 1);
     let numberOfDays = Math.floor((d - oneJan) / (24 * 60 * 60 * 1000));
     let resultWeek = Math.ceil((d.getDay() + 1 + numberOfDays) / 7);
@@ -431,7 +433,7 @@ function renderStatsGraph(period) {
     if (period === 'day') {
         let dayWGroup = {};
         localData.weightLog.forEach(item => {
-            let iso = item.iso_date || getLocalDateISOString(new Date(item.timestamp));
+            let iso = item.iso_date || new Date(item.timestamp).toISOString().split('T')[0];
             if(!dayWGroup[iso]) dayWGroup[iso] = [];
             dayWGroup[iso].push(item.weight);
         });
@@ -445,11 +447,11 @@ function renderStatsGraph(period) {
         let dayKGroup = {};
         let dayPGroup = {}, dayCGroup = {}, dayFGroup = {};
         localData.foods.forEach(item => {
-            let iso = item.date || getLocalDateISOString();
+            let iso = item.date || new Date().toISOString().split('T')[0];
             if(!dayKGroup[iso]) { dayKGroup[iso] = 0; dayPGroup[iso] = 0; dayCGroup[iso] = 0; dayFGroup[iso] = 0; }
             dayKGroup[iso] += item.cal;
-            dayPGroup[iso] += (item.proteinCal !== undefined) ? item.proteinCal : Math.round(item.cal * 0.30);
-            dayCGroup[iso] += (item.carbsCal !== undefined) ? item.carbsCal : Math.round(item.cal * 0.45);
+            dayPGroup[iso] += (item.proteinCal !== undefined) ? item.proteinCal : Math.round(item.cal * 0.25);
+            dayCGroup[iso] += (item.carbsCal !== undefined) ? item.carbsCal : Math.round(item.cal * 0.50);
             dayFGroup[iso] += (item.fatCal !== undefined) ? item.fatCal : Math.round(item.cal * 0.25);
         });
         let sortedKDates = Object.keys(dayKGroup).sort().slice(-5);
@@ -466,7 +468,7 @@ function renderStatsGraph(period) {
     } else if (period === 'week') {
         let weekWGroup = {};
         localData.weightLog.forEach(item => {
-            let iso = item.iso_date || getLocalDateISOString(new Date(item.timestamp));
+            let iso = item.iso_date || new Date(item.timestamp).toISOString().split('T')[0];
             let wKey = getWeekNumber(iso);
             if(!weekWGroup[wKey]) weekWGroup[wKey] = [];
             weekWGroup[wKey].push(item.weight);
@@ -481,13 +483,13 @@ function renderStatsGraph(period) {
         let weekKDayGroup = {};
         let weekPDayGroup = {}, weekCDayGroup = {}, weekFDayGroup = {};
         localData.foods.forEach(item => {
-            let iso = item.date || getLocalDateISOString();
+            let iso = item.date || new Date().toISOString().split('T')[0];
             let wKey = getWeekNumber(iso);
             if(!weekKDayGroup[wKey]) { weekKDayGroup[wKey] = {}; weekPDayGroup[wKey] = {}; weekCDayGroup[wKey] = {}; weekFDayGroup[wKey] = {}; }
             if(!weekKDayGroup[wKey][iso]) { weekKDayGroup[wKey][iso] = 0; weekPDayGroup[wKey][iso] = 0; weekCDayGroup[wKey][iso] = 0; weekFDayGroup[wKey][iso] = 0; }
             weekKDayGroup[wKey][iso] += item.cal;
-            weekPDayGroup[wKey][iso] += (item.proteinCal !== undefined) ? item.proteinCal : Math.round(item.cal * 0.30);
-            weekCDayGroup[wKey][iso] += (item.carbsCal !== undefined) ? item.carbsCal : Math.round(item.cal * 0.45);
+            weekPDayGroup[wKey][iso] += (item.proteinCal !== undefined) ? item.proteinCal : Math.round(item.cal * 0.25);
+            weekCDayGroup[wKey][iso] += (item.carbsCal !== undefined) ? item.carbsCal : Math.round(item.cal * 0.50);
             weekFDayGroup[wKey][iso] += (item.fatCal !== undefined) ? item.fatCal : Math.round(item.cal * 0.25);
         });
         let sortedWeeksK = Object.keys(weekKDayGroup).sort().slice(-5);
@@ -504,7 +506,7 @@ function renderStatsGraph(period) {
     } else if (period === 'month') {
         let monthWGroup = {};
         localData.weightLog.forEach(item => {
-            let iso = item.iso_date || getLocalDateISOString(new Date(item.timestamp));
+            let iso = item.iso_date || new Date(item.timestamp).toISOString().split('T')[0];
             let p = iso.split('-'); let mKey = `${p[0]}-${p[1]}`;
             if(!monthWGroup[mKey]) monthWGroup[mKey] = [];
             monthWGroup[mKey].push(item.weight);
@@ -519,13 +521,13 @@ function renderStatsGraph(period) {
         let monthKDayGroup = {};
         let monthPDayGroup = {}, monthCDayGroup = {}, monthFDayGroup = {};
         localData.foods.forEach(item => {
-            let iso = item.date || getLocalDateISOString();
+            let iso = item.date || new Date().toISOString().split('T')[0];
             let p = iso.split('-'); let mKey = `${p[0]}-${p[1]}`;
             if(!monthKDayGroup[mKey]) { monthKDayGroup[mKey] = {}; monthPDayGroup[mKey] = {}; monthCDayGroup[mKey] = {}; monthFDayGroup[mKey] = {}; }
             if(!monthKDayGroup[mKey][iso]) { monthKDayGroup[mKey][iso] = 0; monthPDayGroup[mKey][iso] = 0; monthCDayGroup[mKey][iso] = 0; monthFDayGroup[mKey][iso] = 0; }
             monthKDayGroup[mKey][iso] += item.cal;
-            monthPDayGroup[mKey][iso] += (item.proteinCal !== undefined) ? item.proteinCal : Math.round(item.cal * 0.30);
-            monthCDayGroup[mKey][iso] += (item.carbsCal !== undefined) ? item.carbsCal : Math.round(item.cal * 0.45);
+            monthPDayGroup[mKey][iso] += (item.proteinCal !== undefined) ? item.proteinCal : Math.round(item.cal * 0.25);
+            monthCDayGroup[mKey][iso] += (item.carbsCal !== undefined) ? item.carbsCal : Math.round(item.cal * 0.50);
             monthFDayGroup[mKey][iso] += (item.fatCal !== undefined) ? item.fatCal : Math.round(item.cal * 0.25);
         });
         let sortedMonthsK = Object.keys(monthKDayGroup).sort().slice(-5);
@@ -720,7 +722,7 @@ async function submitData() {
         if(btnAdd) btnAdd.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> กำลังวิเคราะห์...`;
 
         try {
-            const todayISO = getLocalDateISOString();
+            const todayISO = new Date().toISOString().split('T')[0];
             const prompt = `คุณคือระบบช่วยสกัดข้อมูลนัดหมายและบันทึกส่วนตัว
 ข้อความของผู้ใช้: "${text}"
 วันนี้คือวันที่: ${todayISO}
@@ -747,12 +749,12 @@ async function submitData() {
             });
 
             const data = await response.json();
-            if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
+            if (data.candidates && data.candidates[0].content.parts[0].text) {
                 const aiResult = JSON.parse(data.candidates[0].content.parts[0].text);
 
                 if (aiResult.type === 'weight' && aiResult.weight) {
                     let dateStr = getThaiDateString(new Date());
-                    let isoStr = getLocalDateISOString();
+                    let isoStr = new Date().toISOString().split('T')[0];
                     localData.weightLog.push({ id: Date.now(), date: dateStr, iso_date: isoStr, weight: aiResult.weight, timestamp: Date.now() });
                     saveData(); renderWeightHistory(); calculateHealth();
                     alert(`💾 Gemini บันทึกน้ำหนัก ${aiResult.weight} kg เรียบร้อยครับ`);
@@ -761,8 +763,7 @@ async function submitData() {
                     const sort_time = (aiResult.hours * 60) + aiResult.minutes;
 
                     targetDateStrs.forEach((dStr, idx) => {
-                        let parts = dStr.split('-');
-                        let targetDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                        let targetDate = new Date(dStr);
                         if (isNaN(targetDate.getTime())) targetDate = new Date();
                         targetDate.setHours(aiResult.hours, aiResult.minutes, 0, 0);
 
@@ -822,7 +823,7 @@ async function submitData() {
         let wMatch = text.match(/\d+(\.\d+)?/);
         if(wMatch) {
             let dateStr = getThaiDateString(new Date());
-            let isoStr = getLocalDateISOString();
+            let isoStr = new Date().toISOString().split('T')[0];
             localData.weightLog.push({ id: Date.now(), date: dateStr, iso_date: isoStr, weight: parseFloat(wMatch[0]), timestamp: Date.now() });
             saveData(); renderWeightHistory(); calculateHealth();
             alert(`💾 บันทึกน้ำหนัก ${wMatch[0]} kg สำเร็จ`);
@@ -878,7 +879,8 @@ function openEditModal(id) {
     document.getElementById('edit-live-distance').innerText = item.distance || 0;
     if (item.iso_date) {
         let d = new Date(item.iso_date);
-        document.getElementById('edit-date').value = getLocalDateISOString(d);
+        let localISODate = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        document.getElementById('edit-date').value = localISODate;
     }
     document.getElementById('edit-modal').classList.remove('hidden');
 }
@@ -898,9 +900,7 @@ function saveEditedAppointment() {
     let totalDistance = mileEnd - mileStart; if (totalDistance < 0) totalDistance = 0;
 
     if (!detailInput || !dateInput) return alert("กรุณากรอกหัวข้อนัดหมายและเลือกวันที่ครับ");
-    let parts = dateInput.split('-');
-    let targetDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-    let time_str = "-"; let sort_time = 9999;
+    let targetDate = new Date(dateInput); let time_str = "-"; let sort_time = 9999;
     if (timeInput) {
         let timeData = parseTimeString(timeInput);
         if (timeData) { targetDate.setHours(timeData.hours, timeData.minutes, 0, 0); time_str = timeData.string; sort_time = (timeData.hours * 60) + timeData.minutes; } 
@@ -1001,8 +1001,8 @@ function showSuggestions(val) {
         box.innerHTML = matches.map(menu => {
             let item = currentDb[menu];
             let cal = typeof item === 'object' ? item.cal : item;
-            let pCal = typeof item === 'object' ? item.proteinCal : Math.round(cal*0.30);
-            let cCal = typeof item === 'object' ? item.carbsCal : Math.round(cal*0.45);
+            let pCal = typeof item === 'object' ? item.proteinCal : Math.round(cal*0.25);
+            let cCal = typeof item === 'object' ? item.carbsCal : Math.round(cal*0.50);
             let fCal = typeof item === 'object' ? item.fatCal : Math.round(cal*0.25);
             return `<div onclick="selectSuggestion('${escapeHtml(menu)}', ${cal}, ${pCal}, ${cCal}, ${fCal})" class="p-3 text-xs text-slate-800 cursor-pointer hover:bg-slate-50 font-medium border-b border-slate-50 last:border-0">✨ ${escapeHtml(menu)} <span class="text-emerald-600 font-bold float-right">${cal} kcal</span></div>`;
         }).join(''); 
@@ -1022,8 +1022,8 @@ function selectSuggestion(name, cal, pCal, cCal, fCal) {
 function autoSplitMacrosByCal() {
     let cal = parseInt(document.getElementById('cal-input').value) || 0;
     if(cal > 0) {
-        document.getElementById('protein-cal-input').value = Math.round(cal * 0.30);
-        document.getElementById('carbs-cal-input').value = Math.round(cal * 0.45);
+        document.getElementById('protein-cal-input').value = Math.round(cal * 0.25);
+        document.getElementById('carbs-cal-input').value = Math.round(cal * 0.50);
         document.getElementById('fat-cal-input').value = Math.round(cal * 0.25);
     }
 }
@@ -1031,8 +1031,8 @@ function autoSplitMacrosByCal() {
 function addNewMenuToSystem() { 
     const foodInput = document.getElementById('food-input').value.trim(); 
     const calInput = parseInt(document.getElementById('cal-input').value) || 0; 
-    const pCal = parseInt(document.getElementById('protein-cal-input').value) || Math.round(calInput * 0.30);
-    const cCal = parseInt(document.getElementById('carbs-cal-input').value) || Math.round(calInput * 0.45);
+    const pCal = parseInt(document.getElementById('protein-cal-input').value) || Math.round(calInput * 0.25);
+    const cCal = parseInt(document.getElementById('carbs-cal-input').value) || Math.round(calInput * 0.50);
     const fCal = parseInt(document.getElementById('fat-cal-input').value) || Math.round(calInput * 0.25);
 
     if (!foodInput || calInput <= 0) return alert("กรอกข้อมูลให้ครบก่อนครับ"); 
@@ -1072,8 +1072,8 @@ function addFoodDirect() {
         id: Date.now(), 
         name: f.value.trim(), 
         cal: calVal, 
-        proteinCal: pCal || Math.round(calVal * 0.30),
-        carbsCal: cCal || Math.round(calVal * 0.45),
+        proteinCal: pCal || Math.round(calVal * 0.25),
+        carbsCal: cCal || Math.round(calVal * 0.50),
         fatCal: fCal || Math.round(calVal * 0.25),
         date: d 
     }); 
@@ -1090,13 +1090,13 @@ window.deleteFood = function(id) { localData.foods = localData.foods.filter(i =>
 function renderFoods() {
     const list = document.getElementById('food-list'); const targetDate = document.getElementById('diet-log-date').value; if(!targetDate) return;
     let safeFoods = localData.foods || []; 
-    let filteredFoods = safeFoods.filter(food => { if(!food.date) { let todayStr = getLocalDateISOString(); return todayStr === targetDate; } return food.date === targetDate; });
+    let filteredFoods = safeFoods.filter(food => { if(!food.date) { let todayStr = new Date().toISOString().split('T')[0]; return todayStr === targetDate; } return food.date === targetDate; });
     
     let total = 0; let totalP = 0; let totalC = 0; let totalF = 0;
     filteredFoods.forEach(item => {
         total += item.cal;
-        totalP += (item.proteinCal !== undefined) ? item.proteinCal : Math.round(item.cal * 0.30);
-        totalC += (item.carbsCal !== undefined) ? item.carbsCal : Math.round(item.cal * 0.45);
+        totalP += (item.proteinCal !== undefined) ? item.proteinCal : Math.round(item.cal * 0.25);
+        totalC += (item.carbsCal !== undefined) ? item.carbsCal : Math.round(item.cal * 0.50);
         totalF += (item.fatCal !== undefined) ? item.fatCal : Math.round(item.cal * 0.25);
     });
 
@@ -1210,10 +1210,6 @@ function renderCalendarWidget() {
 
 function changeCalendarMonth(delta) {
     calendarCurrentDate.setMonth(calendarCurrentDate.getMonth() + delta);
-    const totalDaysInNewMonth = new Date(calendarCurrentDate.getFullYear(), calendarCurrentDate.getMonth() + 1, 0).getDate();
-    if (calendarSelectedDay > totalDaysInNewMonth) {
-        calendarSelectedDay = totalDaysInNewMonth;
-    }
     renderCalendarWidget();
     if (calendarSelectedDay) {
         showEventOfDay(calendarSelectedDay);
