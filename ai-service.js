@@ -53,10 +53,7 @@ async function handleImageScheduleEstimate(event) {
                             { inline_data: { mime_type: mimeType, data: base64Data } },
                             { text: prompt }
                         ]
-                    }],
-                    generationConfig: {
-                        responseMimeType: "application/json"
-                    }
+                    }]
                 })
             });
 
@@ -120,10 +117,7 @@ async function handleImageScheduleEstimate(event) {
 
 function clearScheduleImagePreview() {
     document.getElementById('schedule-img-preview-box').classList.add('hidden');
-    const cameraInput = document.getElementById('schedule-camera-input');
-    const galleryInput = document.getElementById('schedule-gallery-input');
-    if (cameraInput) cameraInput.value = '';
-    if (galleryInput) galleryInput.value = '';
+    document.getElementById('schedule-camera-input').value = '';
 }
 
 function importIcsCalendar(event) {
@@ -208,21 +202,16 @@ async function fetchCalorieFromGemini(foodName, base64Image = null, mimeType = n
     
     if (base64Image) {
         partsPayload.push({ inline_data: { mime_type: mimeType, data: base64Image } });
-        partsPayload.push({ text: `วิเคราะห์รูปอาหารนี้ ตอบกลับในรูปแบบ JSON สั้นๆ เท่านั้น ตัวอย่าง: {"name": "ข้าวมันไก่", "cal": 596, "protein_cal": 179, "carbs_cal": 268, "fat_cal": 149}` });
+        partsPayload.push({ text: `วิเคราะห์รูปอาหารนี้ ตอบกลับในรูปแบบ JSON สั้นๆ เท่านั้น ตัวอย่าง: {"name": "ข้าวมันไก่", "cal": 596, "protein_cal": 96, "carbs_cal": 276, "fat_cal": 224}` });
     } else {
-        partsPayload.push({ text: `ประเมินโภชนาการของเมนูอาหารต่อไปนี้: "${foodName}" ตอบกลับในรูปแบบ JSON เท่านั้น ตัวอย่าง: {"name": "${foodName}", "cal": 550, "protein_cal": 165, "carbs_cal": 248, "fat_cal": 137}` });
+        partsPayload.push({ text: `ประเมินโภชนาการของเมนูอาหารต่อไปนี้: "${foodName}" ตอบกลับในรูปแบบ JSON เท่านั้น ตัวอย่าง: {"name": "${foodName}", "cal": 550, "protein_cal": 100, "carbs_cal": 250, "fat_cal": 200}` });
     }
 
     try {
         const response = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                contents: [{ parts: partsPayload }],
-                generationConfig: {
-                    responseMimeType: "application/json"
-                }
-            })
+            body: JSON.stringify({ contents: [{ parts: partsPayload }] })
         });
 
         if (!response.ok) {
@@ -245,8 +234,8 @@ async function fetchCalorieFromGemini(foodName, base64Image = null, mimeType = n
                 return { 
                     name: foodName || "อาหารในภาพ", 
                     cal: cal,
-                    protein_cal: Math.round(cal * 0.30),
-                    carbs_cal: Math.round(cal * 0.45),
+                    protein_cal: Math.round(cal * 0.25),
+                    carbs_cal: Math.round(cal * 0.50),
                     fat_cal: Math.round(cal * 0.25)
                 };
             }
@@ -275,43 +264,38 @@ async function handleImageCalorieEstimate(event) {
         previewBox.classList.remove('hidden');
         statusText.innerText = "🤖 กำลังวิเคราะห์รูปภาพอาหารด้วย AI...";
 
-        try {
-            const base64Data = e.target.result.split(',')[1];
-            const mimeType = file.type || "image/jpeg";
+        const base64Data = e.target.result.split(',')[1];
+        const mimeType = file.type || "image/jpeg";
 
-            const result = await fetchCalorieFromGemini(null, base64Data, mimeType);
+        const result = await fetchCalorieFromGemini(null, base64Data, mimeType);
 
-            if (result && result.cal) {
-                if(result.name) foodInput.value = result.name;
-                calInput.value = result.cal;
-                
-                let pCal = result.protein_cal || Math.round(result.cal * 0.30);
-                let cCal = result.carbs_cal || Math.round(result.cal * 0.45);
-                let fCal = result.fat_cal || Math.round(result.cal * 0.25);
+        if (result && result.cal) {
+            if(result.name) foodInput.value = result.name;
+            calInput.value = result.cal;
+            
+            let pCal = result.protein_cal || Math.round(result.cal * 0.25);
+            let cCal = result.carbs_cal || Math.round(result.cal * 0.50);
+            let fCal = result.fat_cal || Math.round(result.cal * 0.25);
 
-                if(document.getElementById('protein-cal-input')) document.getElementById('protein-cal-input').value = pCal;
-                if(document.getElementById('carbs-cal-input')) document.getElementById('carbs-cal-input').value = cCal;
-                if(document.getElementById('fat-cal-input')) document.getElementById('fat-cal-input').value = fCal;
+            if(document.getElementById('protein-cal-input')) document.getElementById('protein-cal-input').value = pCal;
+            if(document.getElementById('carbs-cal-input')) document.getElementById('carbs-cal-input').value = cCal;
+            if(document.getElementById('fat-cal-input')) document.getElementById('fat-cal-input').value = fCal;
 
-                statusText.innerText = `✨ วิเคราะห์เสร็จสิ้น: ${escapeHtml(result.name || 'จานนี้')} (~${result.cal} kcal)`;
-                confetti({ particleCount: 15, spread: 30, colors: ['#059669'] });
-                
-                if (result.name && result.cal) {
-                    if (!localData.customMenu) localData.customMenu = {};
-                    localData.customMenu[result.name] = {
-                        cal: result.cal,
-                        proteinCal: pCal,
-                        carbsCal: cCal,
-                        fatCal: fCal
-                    };
-                    saveData();
-                }
-            } else {
-                statusText.innerText = "❌ ไม่สามารถประเมินแคลอรีจากภาพได้ โปรดกรอกเองครับ";
+            statusText.innerText = `✨ วิเคราะห์เสร็จสิ้น: ${escapeHtml(result.name || 'จานนี้')} (~${result.cal} kcal)`;
+            confetti({ particleCount: 15, spread: 30, colors: ['#059669'] });
+            
+            if (result.name && result.cal) {
+                if (!localData.customMenu) localData.customMenu = {};
+                localData.customMenu[result.name] = {
+                    cal: result.cal,
+                    proteinCal: pCal,
+                    carbsCal: cCal,
+                    fatCal: fCal
+                };
+                saveData();
             }
-        } catch (err) {
-            console.error("Image Analysis Error:", err);
-            statusText.innerText = "❌ เกิดข้อผิดพลาดในการวิเคราะห์ภาพ โปรดลองใหม่อีกครั้งครับ";
+        } else {
+            statusText.innerText = "❌ ไม่สามารถประเมินแคลอรีจากภาพได้ โปรดกรอกเองครับ";
         }
     };
     reader.readAsDataURL(file);
@@ -335,8 +319,8 @@ async function manualCalculateCalorie() {
     if (foundItem) {
         let cal = typeof foundItem === 'object' ? foundItem.cal : foundItem;
         calInput.value = cal;
-        if(document.getElementById('protein-cal-input')) document.getElementById('protein-cal-input').value = typeof foundItem === 'object' ? foundItem.proteinCal : Math.round(cal * 0.30);
-        if(document.getElementById('carbs-cal-input')) document.getElementById('carbs-cal-input').value = typeof foundItem === 'object' ? foundItem.carbsCal : Math.round(cal * 0.45);
+        if(document.getElementById('protein-cal-input')) document.getElementById('protein-cal-input').value = typeof foundItem === 'object' ? foundItem.proteinCal : Math.round(cal * 0.25);
+        if(document.getElementById('carbs-cal-input')) document.getElementById('carbs-cal-input').value = typeof foundItem === 'object' ? foundItem.carbsCal : Math.round(cal * 0.50);
         if(document.getElementById('fat-cal-input')) document.getElementById('fat-cal-input').value = typeof foundItem === 'object' ? foundItem.fatCal : Math.round(cal * 0.25);
         return;
     }
@@ -350,8 +334,8 @@ async function manualCalculateCalorie() {
         calInput.value = result.cal;
         calInput.placeholder = "กรอกเองหรือระบบคำนวณ...";
 
-        let pCal = result.protein_cal || Math.round(result.cal * 0.30);
-        let cCal = result.carbs_cal || Math.round(result.cal * 0.45);
+        let pCal = result.protein_cal || Math.round(result.cal * 0.25);
+        let cCal = result.carbs_cal || Math.round(result.cal * 0.50);
         let fCal = result.fat_cal || Math.round(result.cal * 0.25);
 
         if(document.getElementById('protein-cal-input')) document.getElementById('protein-cal-input').value = pCal;
