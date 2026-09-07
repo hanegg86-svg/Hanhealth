@@ -22,9 +22,12 @@ document.addEventListener('click', function(e) {
     } 
 });
 
-window.onload = () => { 
+window.onload = async () => { 
     const options = { weekday: 'long', day: 'numeric', month: 'short' };
     document.getElementById('date-display').innerText = new Date().toLocaleDateString('th-TH', options);
+
+    // เริ่มต้นเชื่อมต่อ IndexedDB และทำการ Migration ข้อมูลเดิมอัตโนมัติก่อนเรนเดอร์ UI
+    await initDatabase();
 
     initCalorieModeUI(); 
     setWeightDefaultValues(); 

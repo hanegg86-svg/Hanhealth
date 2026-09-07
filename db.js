@@ -1,5 +1,105 @@
+// ==========================================
+// 📦 INDEXEDDB STORAGE & MIGRATION ENGINE
+// ==========================================
+const IDB_NAME = 'ExecutiveHQ_DB';
+const IDB_VERSION = 1;
+const IDB_STORE = 'app_store';
+const IDB_DATA_KEY = 'executive_data';
+let idbInstance = null;
+
+function openIDB() {
+    return new Promise((resolve, reject) => {
+        if (idbInstance) return resolve(idbInstance);
+        const request = indexedDB.open(IDB_NAME, IDB_VERSION);
+        request.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(IDB_STORE)) {
+                db.createObjectStore(IDB_STORE);
+            }
+        };
+        request.onsuccess = (e) => {
+            idbInstance = e.target.result;
+            resolve(idbInstance);
+        };
+        request.onerror = (e) => reject(e);
+    });
+}
+
+function saveToIndexedDB(data) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const db = await openIDB();
+            const tx = db.transaction(IDB_STORE, 'readwrite');
+            const store = tx.objectStore(IDB_STORE);
+            store.put(data, IDB_DATA_KEY);
+            tx.oncomplete = () => resolve(true);
+            tx.onerror = (e) => reject(e);
+        } catch (err) {
+            console.error("IndexedDB Save Error:", err);
+            reject(err);
+        }
+    });
+}
+
+function loadFromIndexedDB() {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const db = await openIDB();
+            const tx = db.transaction(IDB_STORE, 'readonly');
+            const store = tx.objectStore(IDB_STORE);
+            const req = store.get(IDB_DATA_KEY);
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = (e) => reject(e);
+        } catch (err) {
+            console.error("IndexedDB Load Error:", err);
+            resolve(null);
+        }
+    });
+}
+
+async function initDatabase() {
+    try {
+        const storedData = await loadFromIndexedDB();
+        if (storedData) {
+            localData = storedData;
+        } else {
+            // ตรวจสอบข้อมูลเดิมจาก localStorage เพื่อทำ Migration
+            const oldRaw = localStorage.getItem(DB_KEY);
+            if (oldRaw) {
+                try {
+                    const parsed = JSON.parse(oldRaw);
+                    if (parsed) {
+                        localData = { ...localData, ...parsed };
+                        console.log("🚚 ย้ายข้อมูลเดิมจาก localStorage เข้าสู่ IndexedDB สำเร็จแล้ว");
+                        // ล้างข้อมูลใน localStorage เพื่อคืนพื้นที่ 5 MB ทันที
+                        localStorage.removeItem(DB_KEY);
+                    }
+                } catch (e) {
+                    console.error("Migration Error:", e);
+                }
+            }
+            await saveToIndexedDB(localData);
+        }
+    } catch (err) {
+        console.error("Database Init Error:", err);
+    }
+
+    // ตรวจสอบความสมบูรณ์ของโครงสร้างข้อมูล
+    if (!localData.foods) localData.foods = [];
+    if (!localData.brain_dump) localData.brain_dump = [];
+    if (!localData.customMenu) localData.customMenu = {};
+    if (!localData.weightLog) localData.weightLog = [];
+    if (!localData.calorieTargetMode) localData.calorieTargetMode = 'bmi';
+    if (!localData.customCalorieTarget) localData.customCalorieTarget = 2000;
+    if (!localData.userProfile) {
+        localData.userProfile = { gender: 'male', age: 42, height: 176, activity: 1.55 };
+    }
+
+    migrateOldDataToKcalMacros();
+}
+
 function saveData() { 
-    localStorage.setItem(DB_KEY, JSON.stringify(localData)); 
+    saveToIndexedDB(localData);
 }
 
 // ระบบ Migration ข้อมูลเก่าเป็นแคลอรีสารอาหารแยกประเภทอัตโนมัติ
@@ -46,9 +146,6 @@ function migrateOldDataToKcalMacros() {
         saveData();
     }
 }
-
-// เรียกรัน Migration เมื่อโหลดไฟล์ db.js
-migrateOldDataToKcalMacros();
 
 function getStoredApiKey() { 
     return localStorage.getItem('GEMINI_USER_API_KEY') || ""; 
@@ -104,7 +201,7 @@ function importData(event) {
     const file = event.target.files[0]; 
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = async function(e) {
         try {
             let importedObj = JSON.parse(e.target.result);
             if (importedObj.brain_dump || importedObj.foods || importedObj.weightLog) {

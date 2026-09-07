@@ -35,22 +35,6 @@ let localData = {
     userProfile: { gender: 'male', age: 42, height: 176, activity: 1.55 }
 };
 
-let rawData = localStorage.getItem(DB_KEY);
-if (rawData) {
-    try {
-        localData = JSON.parse(rawData);
-        if (!localData.foods) localData.foods = [];
-        if (!localData.brain_dump) localData.brain_dump = [];
-        if (!localData.customMenu) localData.customMenu = {};
-        if (!localData.weightLog) localData.weightLog = [];
-        if (!localData.calorieTargetMode) localData.calorieTargetMode = 'bmi';
-        if (!localData.customCalorieTarget) localData.customCalorieTarget = 2000;
-        if (!localData.userProfile) {
-            localData.userProfile = { gender: 'male', age: 42, height: 176, activity: 1.55 };
-        }
-    } catch (e) { console.error(e); }
-}
-
 let hqActiveFilter = 'all'; 
 let calendarSelectedDay = new Date().getDate(); 
 let calendarCurrentDate = new Date();
