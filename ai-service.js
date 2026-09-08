@@ -71,37 +71,61 @@ async function handleImageScheduleEstimate(event) {
 
                 if (Array.isArray(eventsList) && eventsList.length > 0) {
                     let addedCount = 0;
+                    let skippedCount = 0;
+
                     eventsList.forEach((evt, idx) => {
                         let targetDate = new Date(evt.iso_date);
                         if (isNaN(targetDate.getTime())) targetDate = new Date();
                         targetDate.setHours(evt.hours || 9, evt.minutes || 0, 0, 0);
 
                         let sortTime = ((evt.hours || 9) * 60) + (evt.minutes || 0);
+                        let detailText = (evt.detail || "นัดหมายจากภาพ").trim();
+                        let targetIso = targetDate.toISOString();
 
-                        localData.brain_dump.push({
-                            id: Date.now() + idx + Math.floor(Math.random() * 1000),
-                            cat: "Calendar",
-                            detail: evt.detail || "นัดหมายจากภาพ",
-                            location: evt.location || "",
-                            notes: "บันทึกอัตโนมัติจากการสแกนรูปภาพตารางงานด้วย Gemini AI",
-                            time: evt.time_str || "-",
-                            iso_date: targetDate.toISOString(),
-                            appointment_date_str: getThaiDateString(targetDate),
-                            sort_time: sortTime,
-                            mile_start: 0, mile_end: 0, distance: 0
-                        });
-                        addedCount++;
+                        // ตรวจสอบความซ้ำซ้อนกับข้อมูลในระบบ
+                        let isDuplicate = localData.brain_dump.some(item => 
+                            item.cat === "Calendar" &&
+                            item.detail.trim().toLowerCase() === detailText.toLowerCase() &&
+                            item.iso_date === targetIso
+                        );
+
+                        if (!isDuplicate) {
+                            localData.brain_dump.push({
+                                id: Date.now() + idx + Math.floor(Math.random() * 1000),
+                                cat: "Calendar",
+                                detail: detailText,
+                                location: evt.location || "",
+                                notes: "บันทึกอัตโนมัติจากการสแกนรูปภาพตารางงานด้วย Gemini AI",
+                                time: evt.time_str || "-",
+                                iso_date: targetIso,
+                                appointment_date_str: getThaiDateString(targetDate),
+                                sort_time: sortTime,
+                                mile_start: 0, mile_end: 0, distance: 0
+                            });
+                            addedCount++;
+                        } else {
+                            skippedCount++;
+                        }
                     });
 
-                    saveData();
-                    displayData();
-                    checkTodayAppointments();
-                    if(!document.getElementById('calendar-section').classList.contains('hidden')) {
-                        renderCalendarWidget();
+                    if (addedCount > 0) {
+                        saveData();
+                        displayData();
+                        checkTodayAppointments();
+                        if(!document.getElementById('calendar-section').classList.contains('hidden')) {
+                            renderCalendarWidget();
+                        }
+                        let successMsg = `✨ เพิ่มนัดหมายจากภาพเรียบร้อยแล้ว ${addedCount} รายการ!`;
+                        if (skippedCount > 0) successMsg += ` (ข้ามรายการซ้ำ ${skippedCount} รายการ)`;
+                        statusText.innerText = successMsg;
+                        confetti({ particleCount: 25, spread: 50, colors: ['#f59e0b', '#059669'] });
+                        alert(`📸 Gemini สแกนและดึงนัดหมายสำเร็จ ${addedCount} รายการครับ!${skippedCount > 0 ? `\n(ข้ามรายการที่ซ้ำในระบบ ${skippedCount} รายการ)` : ''}`);
+                    } else if (skippedCount > 0) {
+                        statusText.innerText = `ℹ️ นัดหมายทั้งหมด (${skippedCount} รายการ) มีอยู่ในระบบแล้วครับ`;
+                        alert(`ℹ️ ไม่พบนัดหมายใหม่ เนื่องจากมีอยู่ในระบบแล้ว ${skippedCount} รายการครับ`);
+                    } else {
+                        statusText.innerText = "⚠️ ไม่พบนัดหมายในภาพครับ";
                     }
-                    statusText.innerText = `✨ เพิ่มนัดหมายจากภาพเรียบร้อยแล้ว ${addedCount} รายการ!`;
-                    confetti({ particleCount: 25, spread: 50, colors: ['#f59e0b', '#059669'] });
-                    alert(`📸 Gemini แสกนและดึงนัดหมายสำเร็จ ${addedCount} รายการแล้วครับ!`);
                 } else {
                     statusText.innerText = "⚠️ ไม่พบนัดหมายในภาพครับ";
                 }
