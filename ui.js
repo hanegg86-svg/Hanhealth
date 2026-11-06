@@ -1,3 +1,5 @@
+let currentStatsPeriod = 'day';
+
 function escapeHtml(str) {
     if (typeof str !== 'string') return str;
     return str.replace(/[&<>"']/g, function(m) {
@@ -32,7 +34,10 @@ function switchMainTab(tabId) {
         document.getElementById('diet-log-date').value = localISODate;
         calculateHealth();
     }
-    if (tabId === 'graph') renderStatsGraph('day');
+    if (tabId === 'graph') {
+        initGraphMonthFilter();
+        renderStatsGraph('day');
+    }
 }
 
 function getThaiDateString(dateObj) {
@@ -416,11 +421,81 @@ function getThaiMonthLabel(monthIndex) {
     return months[monthIndex] || '';
 }
 
+// ==========================================
+// 📅 MONTH RANGE FILTER UTILITIES
+// ==========================================
+function initGraphMonthFilter() {
+    const startEl = document.getElementById('graph-filter-start');
+    const endEl = document.getElementById('graph-filter-end');
+    if (!startEl || !endEl) return;
+    if (!startEl.value || !endEl.value) {
+        const now = new Date();
+        const endStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        // ค่าเริ่มต้นแสดงย้อนหลัง 5 เดือน เพื่อให้ครอบคลุมรอบวิเคราะห์
+        const pastDate = new Date(now.getFullYear(), now.getMonth() - 4, 1);
+        const startStr = `${pastDate.getFullYear()}-${String(pastDate.getMonth() + 1).padStart(2, '0')}`;
+        startEl.value = startStr;
+        endEl.value = endStr;
+    }
+}
+
+function setGraphMonthPreset(preset) {
+    const startEl = document.getElementById('graph-filter-start');
+    const endEl = document.getElementById('graph-filter-end');
+    if (!startEl || !endEl) return;
+    const now = new Date();
+    const endStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    endEl.value = endStr;
+
+    if (preset === 'current') {
+        startEl.value = endStr;
+    } else if (typeof preset === 'number') {
+        const pastDate = new Date(now.getFullYear(), now.getMonth() - (preset - 1), 1);
+        startEl.value = `${pastDate.getFullYear()}-${String(pastDate.getMonth() + 1).padStart(2, '0')}`;
+    }
+    renderStatsGraph();
+}
+
+function resetGraphMonthFilter() {
+    setGraphMonthPreset(5);
+}
+
+function onGraphMonthFilterChange() {
+    const startEl = document.getElementById('graph-filter-start');
+    const endEl = document.getElementById('graph-filter-end');
+    if (startEl && endEl && startEl.value && endEl.value) {
+        if (startEl.value > endEl.value) {
+            endEl.value = startEl.value;
+        }
+    }
+    renderStatsGraph();
+}
+
+function isDateInSelectedMonthRange(isoDate) {
+    if (!isoDate) return true;
+    const startEl = document.getElementById('graph-filter-start');
+    const endEl = document.getElementById('graph-filter-end');
+    if (!startEl || !endEl || !startEl.value || !endEl.value) return true;
+    
+    let mKey = isoDate.substring(0, 7); // Format: YYYY-MM
+    return mKey >= startEl.value && mKey <= endEl.value;
+}
+
 function renderStatsGraph(period) {
+    if (period) {
+        currentStatsPeriod = period;
+    } else {
+        period = currentStatsPeriod || 'day';
+    }
+
+    initGraphMonthFilter();
+
     ['day', 'week', 'month'].forEach(id => {
-        const btn = document.getElementById(`btn-period-${id}`); if(btn) { btn.className = "flex-1 text-slate-500 py-2 rounded-lg transition-all text-center font-medium"; }
+        const btn = document.getElementById(`btn-period-${id}`); 
+        if(btn) { btn.className = "flex-1 text-slate-500 py-2 rounded-lg transition-all text-center font-medium"; }
     });
-    document.getElementById(`btn-period-${period}`).className = "flex-1 bg-white text-slate-900 py-2 rounded-lg shadow-sm font-bold text-center";
+    const activeBtn = document.getElementById(`btn-period-${period}`);
+    if (activeBtn) activeBtn.className = "flex-1 bg-white text-slate-900 py-2 rounded-lg shadow-sm font-bold text-center";
 
     const weightContainer = document.getElementById('weight-line-graph-container');
     const kcalContainer = document.getElementById('kcal-line-graph-container');
@@ -432,12 +507,14 @@ function renderStatsGraph(period) {
 
     if (period === 'day') {
         let dayWGroup = {};
-        localData.weightLog.forEach(item => {
+        (localData.weightLog || []).forEach(item => {
             let iso = item.iso_date || new Date(item.timestamp).toISOString().split('T')[0];
+            if (!isDateInSelectedMonthRange(iso)) return;
             if(!dayWGroup[iso]) dayWGroup[iso] = [];
             dayWGroup[iso].push(item.weight);
         });
-        let sortedWDates = Object.keys(dayWGroup).sort().slice(-5);
+        let sortedWDates = Object.keys(dayWGroup).sort();
+        if (sortedWDates.length > 7) sortedWDates = sortedWDates.slice(-7);
         sortedWDates.forEach(d => {
             let p = d.split('-'); labelsW.push(`${parseInt(p[2])}/${parseInt(p[1])}`);
             let sum = dayWGroup[d].reduce((s,v)=>s+v, 0);
@@ -446,15 +523,17 @@ function renderStatsGraph(period) {
 
         let dayKGroup = {};
         let dayPGroup = {}, dayCGroup = {}, dayFGroup = {};
-        localData.foods.forEach(item => {
+        (localData.foods || []).forEach(item => {
             let iso = item.date || new Date().toISOString().split('T')[0];
+            if (!isDateInSelectedMonthRange(iso)) return;
             if(!dayKGroup[iso]) { dayKGroup[iso] = 0; dayPGroup[iso] = 0; dayCGroup[iso] = 0; dayFGroup[iso] = 0; }
             dayKGroup[iso] += item.cal;
             dayPGroup[iso] += (item.proteinCal !== undefined) ? item.proteinCal : Math.round(item.cal * 0.25);
             dayCGroup[iso] += (item.carbsCal !== undefined) ? item.carbsCal : Math.round(item.cal * 0.50);
             dayFGroup[iso] += (item.fatCal !== undefined) ? item.fatCal : Math.round(item.cal * 0.25);
         });
-        let sortedKDates = Object.keys(dayKGroup).sort().slice(-5);
+        let sortedKDates = Object.keys(dayKGroup).sort();
+        if (sortedKDates.length > 7) sortedKDates = sortedKDates.slice(-7);
         sortedKDates.forEach(d => {
             let p = d.split('-'); 
             let lbl = `${parseInt(p[2])}/${parseInt(p[1])}`;
@@ -467,13 +546,15 @@ function renderStatsGraph(period) {
 
     } else if (period === 'week') {
         let weekWGroup = {};
-        localData.weightLog.forEach(item => {
+        (localData.weightLog || []).forEach(item => {
             let iso = item.iso_date || new Date(item.timestamp).toISOString().split('T')[0];
+            if (!isDateInSelectedMonthRange(iso)) return;
             let wKey = getWeekNumber(iso);
             if(!weekWGroup[wKey]) weekWGroup[wKey] = [];
             weekWGroup[wKey].push(item.weight);
         });
-        let sortedWeeksW = Object.keys(weekWGroup).sort().slice(-5);
+        let sortedWeeksW = Object.keys(weekWGroup).sort();
+        if (sortedWeeksW.length > 6) sortedWeeksW = sortedWeeksW.slice(-6);
         sortedWeeksW.forEach(w => {
             labelsW.push(`สัปดาห์ ${w.split('-W')[1]}`);
             let sum = weekWGroup[w].reduce((s,v)=>s+v, 0);
@@ -482,8 +563,9 @@ function renderStatsGraph(period) {
 
         let weekKDayGroup = {};
         let weekPDayGroup = {}, weekCDayGroup = {}, weekFDayGroup = {};
-        localData.foods.forEach(item => {
+        (localData.foods || []).forEach(item => {
             let iso = item.date || new Date().toISOString().split('T')[0];
+            if (!isDateInSelectedMonthRange(iso)) return;
             let wKey = getWeekNumber(iso);
             if(!weekKDayGroup[wKey]) { weekKDayGroup[wKey] = {}; weekPDayGroup[wKey] = {}; weekCDayGroup[wKey] = {}; weekFDayGroup[wKey] = {}; }
             if(!weekKDayGroup[wKey][iso]) { weekKDayGroup[wKey][iso] = 0; weekPDayGroup[wKey][iso] = 0; weekCDayGroup[wKey][iso] = 0; weekFDayGroup[wKey][iso] = 0; }
@@ -492,7 +574,8 @@ function renderStatsGraph(period) {
             weekCDayGroup[wKey][iso] += (item.carbsCal !== undefined) ? item.carbsCal : Math.round(item.cal * 0.50);
             weekFDayGroup[wKey][iso] += (item.fatCal !== undefined) ? item.fatCal : Math.round(item.cal * 0.25);
         });
-        let sortedWeeksK = Object.keys(weekKDayGroup).sort().slice(-5);
+        let sortedWeeksK = Object.keys(weekKDayGroup).sort();
+        if (sortedWeeksK.length > 6) sortedWeeksK = sortedWeeksK.slice(-6);
         sortedWeeksK.forEach(w => {
             let lbl = `สัปดาห์ ${w.split('-W')[1]}`;
             labelsK.push(lbl); labelsM.push(lbl);
@@ -505,13 +588,15 @@ function renderStatsGraph(period) {
 
     } else if (period === 'month') {
         let monthWGroup = {};
-        localData.weightLog.forEach(item => {
+        (localData.weightLog || []).forEach(item => {
             let iso = item.iso_date || new Date(item.timestamp).toISOString().split('T')[0];
+            if (!isDateInSelectedMonthRange(iso)) return;
             let p = iso.split('-'); let mKey = `${p[0]}-${p[1]}`;
             if(!monthWGroup[mKey]) monthWGroup[mKey] = [];
             monthWGroup[mKey].push(item.weight);
         });
-        let sortedMonthsW = Object.keys(monthWGroup).sort().slice(-5);
+        let sortedMonthsW = Object.keys(monthWGroup).sort();
+        if (sortedMonthsW.length > 8) sortedMonthsW = sortedMonthsW.slice(-8);
         sortedMonthsW.forEach(m => {
             labelsW.push(getThaiMonthLabel(parseInt(m.split('-')[1]) - 1));
             let sum = monthWGroup[m].reduce((s,v)=>s+v, 0);
@@ -520,8 +605,9 @@ function renderStatsGraph(period) {
 
         let monthKDayGroup = {};
         let monthPDayGroup = {}, monthCDayGroup = {}, monthFDayGroup = {};
-        localData.foods.forEach(item => {
+        (localData.foods || []).forEach(item => {
             let iso = item.date || new Date().toISOString().split('T')[0];
+            if (!isDateInSelectedMonthRange(iso)) return;
             let p = iso.split('-'); let mKey = `${p[0]}-${p[1]}`;
             if(!monthKDayGroup[mKey]) { monthKDayGroup[mKey] = {}; monthPDayGroup[mKey] = {}; monthCDayGroup[mKey] = {}; monthFDayGroup[mKey] = {}; }
             if(!monthKDayGroup[mKey][iso]) { monthKDayGroup[mKey][iso] = 0; monthPDayGroup[mKey][iso] = 0; monthCDayGroup[mKey][iso] = 0; monthFDayGroup[mKey][iso] = 0; }
@@ -530,7 +616,8 @@ function renderStatsGraph(period) {
             monthCDayGroup[mKey][iso] += (item.carbsCal !== undefined) ? item.carbsCal : Math.round(item.cal * 0.50);
             monthFDayGroup[mKey][iso] += (item.fatCal !== undefined) ? item.fatCal : Math.round(item.cal * 0.25);
         });
-        let sortedMonthsK = Object.keys(monthKDayGroup).sort().slice(-5);
+        let sortedMonthsK = Object.keys(monthKDayGroup).sort();
+        if (sortedMonthsK.length > 8) sortedMonthsK = sortedMonthsK.slice(-8);
         sortedMonthsK.forEach(m => {
             let lbl = getThaiMonthLabel(parseInt(m.split('-')[1]) - 1);
             labelsK.push(lbl); labelsM.push(lbl);
@@ -783,7 +870,7 @@ async function submitData() {
                             localData.brain_dump.push({ 
                                 id: Date.now() + idx, 
                                 cat: "Calendar", 
-                                detail: eventDetail,
+                                detail: eventDetail, 
                                 location: aiResult.location || "",
                                 notes: targetDateStrs.length > 1 ? `(นัดหมายต่อเนื่อง ${getThaiDateString(new Date(targetDateStrs[0]))} - ${getThaiDateString(new Date(targetDateStrs[targetDateStrs.length - 1]))})` : "", 
                                 time: aiResult.time_str || "-", 
